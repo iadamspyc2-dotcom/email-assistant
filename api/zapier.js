@@ -1,52 +1,77 @@
+// api/zapier.js
+// Webhook endpoint for Zapier - stores emails in Upstash Redis
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  if (req.method !== 'POST') { res.status(405).json({error:'Method not allowed'}); return; }
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
   try {
-    const { from, subject, body, date } = req.body;
+    const body = req.body;
 
-    // Build the analysis request to Claude
-    const today = new Date().toISOString().split("T")[0];
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Build email object from Zapier payload
+    const email = {
+      id: body.id || `zapier-${Date.now()}`,
+      subject: body.subject || '(No Subject)',
+      from: body.from || '',
+      to: body.to || '',
+      date: body.date || new Date().toISOString(),
+      snippet: body.snippet || body.body_plain?.slice(0, 200) || '',
+      body: body.body_plain || body.body || '',
+      labels: ['AI Review'],
+      source: 'zapier',
+      receivedAt: new Date().toISOString(),
+    };
+
+    // Store in Upstash Redis using the REST API
+    // Vercel auto-injects KV_REST_API_URL and KV_REST_API_TOKEN
+    const redisUrl = process.env.KV_REST_API_URL;
+    const redisToken = process.env.KV_REST_API_TOKEN;
+
+    if (!redisUrl || !redisToken) {
+      console.error('Missing Redis env vars');
+      return res.status(500).json({ error: 'Storage not configured' });
+    }
+
+    // Push email to a Redis list (newest first)
+    const pushResponse = await fetch(`${redisUrl}/lpush/emails`, {
       method: 'POST',
       headers: {
+        Authorization: `Bearer ${redisToken}`,
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1500,
-        system: `You are an expert email assistant and CRM specialist. Analyze emails and return ONLY valid JSON (no markdown) with this structure: {"priority":"urgent|high|medium|low","summary":"2-3 sentence summary","sentiment":"positive|neutral|concerned|negative","customerType":"B2B|B2C|prospect|vendor|internal","keyPoints":["p1","p2","p3"],"actionItems":[{"task":"t","deadline":"d or null","urgency":"urgent|high|medium|low"}],"draftReply":"professional reply","customerProfile":{"name":"full name","email":"email","company":"company","notes":"key info"},"salesforceEvents":[{"type":"Task|Event|Log a Call|Follow-Up","subject":"max 80 chars","description":"log text","priority":"High|Normal|Low","status":"Not Started","activityDate":"YYYY-MM-DD today is ${today}","contactName":"name","contactEmail":"email","accountName":"company","callResult":"null","nextStep":"next step","opportunityStage":"null","amount":"null","sfNotes":"notes"}]}`,
-        messages: [{
-          role: 'user',
-          content: `From: ${from}\nSubject: ${subject}\n\n${body}`
-        }]
-      })
+      body: JSON.stringify(JSON.stringify(email)),
     });
 
-    const data = await response.json();
-    const text = data.content?.map(b => b.text || '').join('') || '{}';
-    const analysis = JSON.parse(text.replace(/```json|```/g, '').trim());
+    if (!pushResponse.ok) {
+      throw new Error(`Redis push failed: ${pushResponse.status}`);
+    }
 
-    // Return the email + analysis so the app can store it
-    res.status(200).json({
+    // Trim list to keep only the 100 most recent emails
+    await fetch(`${redisUrl}/ltrim/emails/0/99`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${redisToken}`,
+      },
+    });
+
+    console.log('📬 Email stored:', email.subject, 'from', email.from);
+
+    return res.status(200).json({
       success: true,
-      email: {
-        id: 'zap_' + Date.now(),
-        from: from || 'unknown@email.com',
-        name: (from || 'Unknown').split('@')[0],
-        subject: subject || 'No Subject',
-        date: date || new Date().toLocaleString(),
-        body: body || ''
-      },
-      analysis
+      message: 'Email received and stored',
+      email_id: email.id,
+      subject: email.subject,
+      received_at: email.receivedAt,
     });
 
-  } catch(err) {
-    res.status(500).json({ error: err.message });
+  } catch (error) {
+    console.error('Zapier webhook error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message,
+    });
   }
 }
+
