@@ -17,6 +17,7 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   @keyframes fadein { from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);} }
   @keyframes slidedown { from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);} }
+  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.5;} }
   .fadein { animation:fadein 0.25s ease; }
   .slidedown { animation:slidedown 0.2s ease; }
   .hov:hover { background:#eef2f7 !important; border-color:#b0c0d0 !important; }
@@ -27,7 +28,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect } = React;
+const { useState, useEffect, useRef } = React;
 
 const TABS = ["📥 Email Triage","👥 Customer Database","📋 Action Board","☁️ Salesforce Events"];
 
@@ -40,6 +41,21 @@ const SAMPLE_EMAILS = [
 // ── Storage helpers ──────────────────────────────────────────────
 function save(key, val) { try { localStorage.setItem("aimc_"+key, JSON.stringify(val)); } catch(e){} }
 function load(key, fallback) { try { const v=localStorage.getItem("aimc_"+key); return v?JSON.parse(v):fallback; } catch(e){ return fallback; } }
+
+// ── Normalize a raw email from /api/emails into app format ───────
+function normalizeApiEmail(e) {
+  const fromRaw = e.from || "";
+  const namePart = fromRaw.includes("<") ? fromRaw.split("<")[0].trim() : fromRaw.split("@")[0];
+  return {
+    id: e.id || ("api-" + Date.now() + Math.random()),
+    from: fromRaw,
+    name: namePart || "Unknown",
+    subject: e.subject || "(No Subject)",
+    date: e.date ? new Date(e.date).toLocaleString() : new Date(e.receivedAt||Date.now()).toLocaleString(),
+    body: e.body || e.snippet || "",
+    source: "zapier",
+  };
+}
 
 // ── Export builder ───────────────────────────────────────────────
 function buildExport(customers, actions, sfEvents, emails, analysisMap) {
@@ -178,6 +194,42 @@ function App() {
   const [showExport, setExport] = useState(false);
   const [showClear, setClear]   = useState(false);
   const [saved, setSaved]       = useState(false);
+  const [liveStatus, setLiveStatus] = useState("idle"); // idle | checking | new
+  const knownIds = useRef(new Set(emails.map(e=>e.id)));
+
+  // ── Poll /api/emails every 60s for new Zapier emails ──────────
+  useEffect(() => {
+    async function fetchLive() {
+      try {
+        setLiveStatus("checking");
+        const res = await fetch("/api/emails");
+        if (!res.ok) { setLiveStatus("idle"); return; }
+        const data = await res.json();
+        if (!data.success || !data.emails?.length) { setLiveStatus("idle"); return; }
+        const incoming = data.emails
+          .map(normalizeApiEmail)
+          .filter(e => !knownIds.current.has(e.id));
+        if (incoming.length > 0) {
+          incoming.forEach(e => knownIds.current.add(e.id));
+          setEmails(prev => {
+            // Remove sample emails if we now have real ones
+            const withoutSamples = prev.filter(e => !e.id.startsWith("s"));
+            const merged = [...incoming, ...withoutSamples];
+            return merged;
+          });
+          setLiveStatus("new");
+          setTimeout(() => setLiveStatus("idle"), 4000);
+        } else {
+          setLiveStatus("idle");
+        }
+      } catch(e) {
+        setLiveStatus("idle");
+      }
+    }
+    fetchLive(); // run immediately on mount
+    const interval = setInterval(fetchLive, 60000); // then every 60s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(()=>{ save("emails",emails); },[emails]);
   useEffect(()=>{ save("amap",amap); },[amap]);
@@ -189,6 +241,7 @@ function App() {
     ["emails","amap","customers","actions","sf"].forEach(k=>{ try{localStorage.removeItem("aimc_"+k);}catch(e){} });
     setEmails(SAMPLE_EMAILS); setAmap({}); setCust([]); setActs([]); setSF([]);
     setSelEmail(null); setSelCust(null); setSelSF(null); setClear(false);
+    knownIds.current = new Set(SAMPLE_EMAILS.map(e=>e.id));
   }
 
   async function analyze(email) {
@@ -239,6 +292,13 @@ function App() {
   const section={background:"#f8fafc",borderRadius:10,padding:14,border:"1px solid #dde4ec",marginBottom:14};
   const sectionLabel={fontSize:10,fontWeight:700,color:"#0d7a6b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8};
 
+  // Live status indicator
+  const LiveDot = () => {
+    if (liveStatus === "new") return <span style={{fontSize:11,color:"#0a9e6b",fontWeight:700,fontFamily:"'DM Mono',monospace",animation:"pulse 1s ease infinite"}}>● New email!</span>;
+    if (liveStatus === "checking") return <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace"}}><span style={{display:"inline-block",width:8,height:8,border:"1.5px solid #8a9ab0",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite",marginRight:4}}/>checking…</span>;
+    return <span style={{fontSize:11,color:"#b0bcc8",fontFamily:"'DM Mono',monospace"}}>● live</span>;
+  };
+
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#f0f4f8",minHeight:"100vh",color:"#1a2540"}}>
       {showExport && <ExportModal text={exportText} onClose={()=>setExport(false)}/>}
@@ -254,6 +314,7 @@ function App() {
           </div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <LiveDot/>
           {saved && <span style={{fontSize:11,color:"#0d7a6b",fontWeight:600,fontFamily:"'DM Mono',monospace"}}>✓ Saved</span>}
           {customers.length>0 && <div style={{background:"#e8f4fd",border:"1px solid #aed6f1",borderRadius:8,padding:"4px 12px",fontSize:12,color:"#2471a3"}}>{customers.length} customers</div>}
           {actions.filter(a=>!a.done).length>0 && <div style={{background:"#fde8e8",border:"1px solid #f5c6c6",borderRadius:8,padding:"4px 12px",fontSize:12,color:"#c0392b"}}>{actions.filter(a=>!a.done).length} actions</div>}
@@ -297,6 +358,7 @@ function App() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                       <span style={{fontWeight:600,fontSize:13}}>{email.name}</span>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        {email.source==="zapier" && <span style={{fontSize:9,padding:"1px 6px",borderRadius:4,background:"#f0f6ff",color:"#4a6acf",border:"1px solid #c0d4f0",fontWeight:700}}>LIVE</span>}
                         {loadingId===email.id && <div style={{width:10,height:10,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>}
                         {a && <Badge level={a.priority}/>}
                       </div>
