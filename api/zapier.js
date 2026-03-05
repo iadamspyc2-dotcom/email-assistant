@@ -9,31 +9,33 @@ export default async function handler(req, res) {
   try {
     const body = req.body;
 
-    // Build email object from Zapier payload
+    // Zapier sends fields either at top level or nested under 'data'
+    const d = body.data || body;
+
     const email = {
-      id: body.id || `zapier-${Date.now()}`,
-      subject: body.subject || '(No Subject)',
-      from: body.from || '',
-      to: body.to || '',
-      date: body.date || new Date().toISOString(),
-      snippet: body.snippet || body.body_plain?.slice(0, 200) || '',
-      body: body.body_plain || body.body || '',
+      id: d.id || body.id || `zapier-${Date.now()}`,
+      subject: d.subject || body.subject || '(No Subject)',
+      from: d.from || body.from || '',
+      to: d.to || body.to || '',
+      date: d.date || body.date || new Date().toISOString(),
+      snippet: d.snippet || body.snippet || d.body_plain?.slice(0, 200) || '',
+      body: d.body_plain || body.body_plain || d.body || body.body || '',
       labels: ['AI Review'],
       source: 'zapier',
       receivedAt: new Date().toISOString(),
     };
 
-    // Store in Upstash Redis using the REST API
-    // Vercel auto-injects KV_REST_API_URL and KV_REST_API_TOKEN
+    // Log full body for debugging
+    console.log('Zapier raw body keys:', Object.keys(body));
+    console.log('Email parsed:', { subject: email.subject, from: email.from, id: email.id });
+
     const redisUrl = process.env.KV_REST_API_URL;
     const redisToken = process.env.KV_REST_API_TOKEN;
 
     if (!redisUrl || !redisToken) {
-      console.error('Missing Redis env vars');
       return res.status(500).json({ error: 'Storage not configured' });
     }
 
-    // Push email to a Redis list (newest first)
     const pushResponse = await fetch(`${redisUrl}/lpush/emails`, {
       method: 'POST',
       headers: {
@@ -47,31 +49,20 @@ export default async function handler(req, res) {
       throw new Error(`Redis push failed: ${pushResponse.status}`);
     }
 
-    // Trim list to keep only the 100 most recent emails
     await fetch(`${redisUrl}/ltrim/emails/0/99`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${redisToken}`,
-      },
+      headers: { Authorization: `Bearer ${redisToken}` },
     });
-
-    console.log('📬 Email stored:', email.subject, 'from', email.from);
 
     return res.status(200).json({
       success: true,
       message: 'Email received and stored',
       email_id: email.id,
       subject: email.subject,
-      received_at: email.receivedAt,
     });
 
   } catch (error) {
     console.error('Zapier webhook error:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error',
-      details: error.message,
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 }
-
