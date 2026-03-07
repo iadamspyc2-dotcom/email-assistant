@@ -21,6 +21,7 @@
   .fadein { animation:fadein 0.25s ease; }
   .slidedown { animation:slidedown 0.2s ease; }
   .hov:hover { background:#eef2f7 !important; border-color:#b0c0d0 !important; }
+  .kb-card:hover { background:#f5faf8 !important; border-color:#0d7a6b !important; cursor:pointer; }
   input,textarea { outline:none; }
   input:focus,textarea:focus { border-color:#0d7a6b !important; }
 </style>
@@ -38,11 +39,9 @@ const SAMPLE_EMAILS = [
   {id:"s3",from:"j.patel@innovatetech.io",name:"Jayesh Patel",subject:"Partnership opportunity - let's connect",date:"Yesterday, 4:22 PM",body:"Hello,\n\nI came across your work and I think there's a strong alignment between our companies. We're building an AI-powered logistics platform and could use a partner with your expertise in supply chain.\n\nWould you be open to a 30-minute call this week or next?\n\nLooking forward to connecting.\n\nJayesh Patel\nCo-founder, InnovateTech"}
 ];
 
-// ── Storage helpers ──────────────────────────────────────────────
 function save(key, val) { try { localStorage.setItem("aimc_"+key, JSON.stringify(val)); } catch(e){} }
 function load(key, fallback) { try { const v=localStorage.getItem("aimc_"+key); return v?JSON.parse(v):fallback; } catch(e){ return fallback; } }
 
-// ── Normalize a raw email from /api/emails into app format ───────
 function normalizeApiEmail(e) {
   const fromRaw = e.from || "";
   const namePart = fromRaw.includes("<") ? fromRaw.split("<")[0].trim() : fromRaw.split("@")[0];
@@ -57,7 +56,6 @@ function normalizeApiEmail(e) {
   };
 }
 
-// ── Export builder ───────────────────────────────────────────────
 function buildExport(customers, actions, sfEvents, emails, analysisMap) {
   const out = [];
   out.push("# AI MAIL COMMAND — EXPORT FOR CLAUDE");
@@ -105,7 +103,6 @@ function buildExport(customers, actions, sfEvents, emails, analysisMap) {
   return out.join("\n");
 }
 
-// ── Small components ─────────────────────────────────────────────
 function Badge({level}) {
   const C={urgent:{bg:"#fde8e8",c:"#c0392b",b:"#f5c6c6"},high:{bg:"#fef3e2",c:"#d68910",b:"#f9d99a"},medium:{bg:"#e8f4fd",c:"#2471a3",b:"#aed6f1"},low:{bg:"#f4f6f7",c:"#717d7e",b:"#d5d8dc"}};
   const s=C[level]||C.low;
@@ -136,7 +133,6 @@ function sfBlock(ev) {
   return L.join("\n");
 }
 
-// ── Export Modal ─────────────────────────────────────────────────
 function ExportModal({text, onClose}) {
   const [ok,setOk]=useState(false);
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
@@ -159,7 +155,6 @@ function ExportModal({text, onClose}) {
   </div>;
 }
 
-// ── Confirm Modal ────────────────────────────────────────────────
 function ConfirmModal({onConfirm, onCancel}) {
   return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
     <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.15)"}} className="slidedown">
@@ -173,7 +168,126 @@ function ConfirmModal({onConfirm, onCancel}) {
   </div>;
 }
 
-// ── Main App ─────────────────────────────────────────────────────
+// ── KB Detail Panel ──────────────────────────────────────────────
+function KbDetailPanel({doc, onClose, onSave, onDelete}) {
+  const [notes, setNotes] = useState(doc.notes || "");
+  const [items, setItems] = useState(doc.items || []);
+  const [newItem, setNewItem] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [editBody, setEditBody] = useState(false);
+  const [bodyVal, setBodyVal] = useState(doc.body);
+
+  const catColor={Customer:"#2471a3",Pricing:"#1e8449",Vendor:"#7d3c98",Project:"#d68910",Process:"#c0392b",Other:"#5a7090"};
+
+  function handleSave() {
+    onSave({...doc, notes, items, body: bodyVal});
+    setSaved(true);
+    setTimeout(()=>setSaved(false), 1800);
+  }
+
+  function addItem() {
+    if (!newItem.trim()) return;
+    setItems(prev=>[...prev, {id:Date.now(), text:newItem.trim(), done:false}]);
+    setNewItem("");
+  }
+
+  function toggleItem(id) {
+    setItems(prev=>prev.map(it=>it.id===id?{...it,done:!it.done}:it));
+  }
+
+  function removeItem(id) {
+    setItems(prev=>prev.filter(it=>it.id!==id));
+  }
+
+  return (
+    <div style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",overflow:"hidden"}} className="fadein">
+      {/* Header */}
+      <div style={{padding:"16px 20px",borderBottom:"1px solid #eef2f7",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1,marginRight:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:"#f0f4f8",color:catColor[doc.category]||"#5a7090",border:"1px solid #e0e8f0",fontWeight:700}}>{doc.category}</span>
+            <span style={{fontSize:11,color:"#b0bcc8"}}>{doc.date}</span>
+          </div>
+          <div style={{fontSize:16,fontWeight:700,color:"#1a2540",lineHeight:1.3}}>{doc.title}</div>
+        </div>
+        <div style={{display:"flex",gap:6"}}>
+          <button onClick={()=>onDelete(doc.id)} style={{background:"transparent",border:"1px solid #fcc",color:"#c0392b",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:600}}>🗑 Delete</button>
+          <button onClick={onClose} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>✕</button>
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{flex:1,overflowY:"auto",padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
+
+        {/* Original Content */}
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#0d7a6b",textTransform:"uppercase",letterSpacing:"0.08em"}}>📄 Content</div>
+            <button onClick={()=>setEditBody(v=>!v)} style={{fontSize:11,background:"#f8fafc",border:"1px solid #d0dce8",color:"#5a7090",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit"}}>{editBody?"Done editing":"✏️ Edit"}</button>
+          </div>
+          {editBody ? (
+            <textarea
+              value={bodyVal}
+              onChange={e=>setBodyVal(e.target.value)}
+              rows={6}
+              style={{width:"100%",background:"#f8fafc",border:"1px solid #0d7a6b",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
+            />
+          ) : (
+            <div style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",border:"1px solid #e8edf2",fontSize:12,color:"#3a5070",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:180,overflowY:"auto"}}>
+              {bodyVal}
+            </div>
+          )}
+        </div>
+
+        {/* Action Items */}
+        <div>
+          <div style={{fontSize:10,fontWeight:700,color:"#d68910",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>⚡ Action Items / Next Steps</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
+            {items.length===0 && <div style={{fontSize:12,color:"#c0ccd8",fontStyle:"italic",padding:"8px 0"}}>No action items yet — add one below</div>}
+            {items.map(it=>(
+              <div key={it.id} style={{display:"flex",alignItems:"center",gap:8,background:"#fffbf0",border:"1px solid #f0e8d0",borderRadius:7,padding:"7px 10px"}}>
+                <input type="checkbox" checked={it.done} onChange={()=>toggleItem(it.id)} style={{width:14,height:14,cursor:"pointer",accentColor:"#d68910",flexShrink:0}}/>
+                <span style={{flex:1,fontSize:12,color:it.done?"#b0bcc8":"#2a3a50",textDecoration:it.done?"line-through":"none"}}>{it.text}</span>
+                <button onClick={()=>removeItem(it.id)} style={{background:"transparent",border:"none",color:"#c0ccd8",cursor:"pointer",fontSize:13,padding:0,lineHeight:1,flexShrink:0}}>×</button>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:6}}>
+            <input
+              value={newItem}
+              onChange={e=>setNewItem(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); addItem(); } }}
+              placeholder="Add action item… (Enter to add)"
+              style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:6,padding:"7px 10px",color:"#1a2540",fontSize:12,fontFamily:"inherit"}}
+            />
+            <button onClick={addItem} style={{background:"#fef3e2",border:"1px solid #f9d99a",color:"#d68910",borderRadius:6,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>+ Add</button>
+          </div>
+        </div>
+
+        {/* Additional Notes */}
+        <div>
+          <div style={{fontSize:10,fontWeight:700,color:"#5a7090",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>📝 Additional Notes</div>
+          <textarea
+            value={notes}
+            onChange={e=>setNotes(e.target.value)}
+            placeholder="Add context, updates, related contacts, links, or anything else relevant to this project…"
+            rows={5}
+            style={{width:"100%",background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
+          />
+        </div>
+      </div>
+
+      {/* Save footer */}
+      <div style={{padding:"12px 20px",borderTop:"1px solid #eef2f7",display:"flex",gap:8}}>
+        <button onClick={handleSave} style={{flex:1,background:saved?"#0a9e6b":"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"10px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",transition:"all 0.2s"}}>
+          {saved ? "✓ Saved!" : "💾 Save Changes"}
+        </button>
+        <button onClick={onClose} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [tab, setTab]           = useState(0);
   const [emails, setEmails]     = useState(()=>load("emails", SAMPLE_EMAILS));
@@ -194,7 +308,7 @@ function App() {
   const [showExport, setExport] = useState(false);
   const [showClear, setClear]   = useState(false);
   const [saved, setSaved]       = useState(false);
-  const [liveStatus, setLiveStatus] = useState("idle"); // idle | checking | new
+  const [liveStatus, setLiveStatus] = useState("idle");
   const knownIds = useRef(new Set(emails.map(e=>e.id)));
   const [kbDocs, setKbDocs]         = useState(()=>load("kbDocs", []));
   const [kbChat, setKbChat]         = useState([]);
@@ -204,9 +318,9 @@ function App() {
   const [kbDocBody, setKbDocBody]   = useState("");
   const [kbDocCat, setKbDocCat]     = useState("Customer");
   const [kbAddMode, setKbAddMode]   = useState(false);
+  const [kbSelDoc, setKbSelDoc]     = useState(null); // NEW: selected doc for detail view
   const chatEndRef = useRef(null);
 
-  // ── Poll /api/emails every 60s for new Zapier emails ──────────
   useEffect(() => {
     async function fetchLive() {
       try {
@@ -221,7 +335,6 @@ function App() {
         if (incoming.length > 0) {
           incoming.forEach(e => knownIds.current.add(e.id));
           setEmails(prev => {
-            // Remove sample emails if we now have real ones
             const withoutSamples = prev.filter(e => !e.id.startsWith("s"));
             const merged = [...incoming, ...withoutSamples];
             return merged;
@@ -235,8 +348,8 @@ function App() {
         setLiveStatus("idle");
       }
     }
-    fetchLive(); // run immediately on mount
-    const interval = setInterval(fetchLive, 60000); // then every 60s
+    fetchLive();
+    const interval = setInterval(fetchLive, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -302,12 +415,21 @@ function App() {
   const section={background:"#f8fafc",borderRadius:10,padding:14,border:"1px solid #dde4ec",marginBottom:14};
   const sectionLabel={fontSize:10,fontWeight:700,color:"#0d7a6b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8};
 
-  // Live status indicator
   const LiveDot = () => {
     if (liveStatus === "new") return <span style={{fontSize:11,color:"#0a9e6b",fontWeight:700,fontFamily:"'DM Mono',monospace",animation:"pulse 1s ease infinite"}}>● New email!</span>;
     if (liveStatus === "checking") return <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace"}}><span style={{display:"inline-block",width:8,height:8,border:"1.5px solid #8a9ab0",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite",marginRight:4}}/>checking…</span>;
     return <span style={{fontSize:11,color:"#b0bcc8",fontFamily:"'DM Mono',monospace"}}>● live</span>;
   };
+
+  // KB helpers
+  function handleKbSave(updatedDoc) {
+    setKbDocs(prev=>prev.map(d=>d.id===updatedDoc.id ? updatedDoc : d));
+    setKbSelDoc(updatedDoc);
+  }
+  function handleKbDelete(id) {
+    setKbDocs(prev=>prev.filter(d=>d.id!==id));
+    setKbSelDoc(null);
+  }
 
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#f0f4f8",minHeight:"100vh",color:"#1a2540"}}>
@@ -552,12 +674,12 @@ function App() {
 
         {/* ── KNOWLEDGE BASE ── */}
         {tab===4 && (
-          <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16,minHeight:"75vh"}}>
+          <div style={{display:"grid",gridTemplateColumns:kbSelDoc?"300px 1fr":"300px 1fr",gap:16,minHeight:"75vh"}}>
             {/* LEFT: Doc list + add */}
             <div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
                 <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.08em"}}>Knowledge Base · {kbDocs.length} docs</span>
-                <button onClick={()=>setKbAddMode(v=>!v)} style={{fontSize:11,background:"#f0faf6",border:"1px solid #0d7a6b",color:"#0d7a6b",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>+ Add</button>
+                <button onClick={()=>{ setKbAddMode(v=>!v); setKbSelDoc(null); }} style={{fontSize:11,background:"#f0faf6",border:"1px solid #0d7a6b",color:"#0d7a6b",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>+ Add</button>
               </div>
               {kbAddMode && (
                 <div style={{background:"#fff",border:"1px solid #0d7a6b",borderRadius:12,padding:14,marginBottom:12}} className="fadein">
@@ -575,7 +697,7 @@ function App() {
                   <div style={{display:"flex",gap:6}}>
                     <button onClick={()=>{
                       if(!kbDocTitle.trim()||!kbDocBody.trim()) return;
-                      setKbDocs(prev=>[{id:Date.now(),title:kbDocTitle,body:kbDocBody,category:kbDocCat,date:new Date().toLocaleDateString()},...prev]);
+                      setKbDocs(prev=>[{id:Date.now(),title:kbDocTitle,body:kbDocBody,category:kbDocCat,date:new Date().toLocaleDateString(),notes:"",items:[]},...prev]);
                       setKbDocTitle(""); setKbDocBody(""); setKbAddMode(false);
                     }} style={{flex:1,background:"#0d7a6b",border:"none",color:"white",borderRadius:6,padding:"8px",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>Save to Knowledge Base</button>
                     <button onClick={()=>setKbAddMode(false)} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:6,padding:"8px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Cancel</button>
@@ -586,113 +708,135 @@ function App() {
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
                 {kbDocs.map(doc=>{
                   const catColor={Customer:"#2471a3",Pricing:"#1e8449",Vendor:"#7d3c98",Project:"#d68910",Process:"#c0392b",Other:"#5a7090"};
-                  return <div key={doc.id} style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+                  const isSelected = kbSelDoc?.id === doc.id;
+                  const hasNotes = doc.notes && doc.notes.trim().length > 0;
+                  const hasItems = doc.items && doc.items.length > 0;
+                  return <div
+                    key={doc.id}
+                    className="kb-card"
+                    onClick={()=>{ setKbSelDoc(isSelected ? null : doc); setKbAddMode(false); }}
+                    style={{background:isSelected?"#f0faf6":"#fff",border:"1px solid "+(isSelected?"#0d7a6b":"#dde4ec"),borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",transition:"all 0.15s",position:"relative"}}
+                  >
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-                      <span style={{fontWeight:600,fontSize:13,flex:1,marginRight:8}}>{doc.title}</span>
-                      <button onClick={()=>setKbDocs(prev=>prev.filter(d=>d.id!==doc.id))} style={{background:"transparent",border:"none",color:"#c0ccd8",cursor:"pointer",fontSize:14,padding:0,lineHeight:1}}>×</button>
+                      <span style={{fontWeight:600,fontSize:13,flex:1,marginRight:8,color:isSelected?"#0d7a6b":"#1a2540"}}>{doc.title}</span>
+                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                        {(hasNotes||hasItems) && <span style={{fontSize:9,padding:"1px 5px",borderRadius:4,background:"#f0faf6",color:"#0d7a6b",border:"1px solid #b0ddd0",fontWeight:700}}>+notes</span>}
+                      </div>
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{fontSize:10,padding:"2px 7px",borderRadius:4,background:"#f0f4f8",color:catColor[doc.category]||"#5a7090",border:"1px solid #e0e8f0",fontWeight:700}}>{doc.category}</span>
                       <span style={{fontSize:10,color:"#b0bcc8"}}>{doc.date}</span>
                     </div>
+                    {hasItems && <div style={{marginTop:6,fontSize:10,color:"#8a9ab0"}}>{doc.items.filter(i=>!i.done).length} action{doc.items.filter(i=>!i.done).length!==1?"s":""} pending</div>}
+                    {isSelected && <div style={{position:"absolute",right:-8,top:"50%",transform:"translateY(-50%)",width:0,height:0,borderTop:"8px solid transparent",borderBottom:"8px solid transparent",borderLeft:"8px solid #0d7a6b"}}/>}
                   </div>;
                 })}
               </div>
             </div>
 
-            {/* RIGHT: AI Chat */}
-            <div style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
-              <div style={{padding:"16px 20px",borderBottom:"1px solid #eef2f7"}}>
-                <div style={{fontSize:15,fontWeight:700,marginBottom:2}}>🧠 AI Assistant</div>
-                <div style={{fontSize:11,color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects</div>
-              </div>
-              <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:12,minHeight:300}}>
-                {kbChat.length===0 && <div style={{textAlign:"center",paddingTop:60,color:"#b0bcc8"}}>
-                  <div style={{fontSize:36,marginBottom:12}}>💬</div>
-                  <div style={{fontSize:13,fontWeight:500,marginBottom:8}}>Ask me anything</div>
-                  <div style={{fontSize:11,lineHeight:1.8,color:"#c0ccd8"}}>
-                    "What's the pricing for Acme Corp?"<br/>
-                    "Which vendors does my customer use?"<br/>
-                    "What's the status of the Miami project?"<br/>
-                    "Summarize my notes on this customer"
-                  </div>
-                </div>}
-                {kbChat.map((msg,i)=>(
-                  <div key={i} style={{display:"flex",flexDirection:msg.role==="user"?"row-reverse":"row",gap:10,alignItems:"flex-start"}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:msg.role==="user"?"#0d7a6b":"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white",flexShrink:0}}>{msg.role==="user"?"You":"AI"}</div>
-                    <div style={{background:msg.role==="user"?"#f0faf6":"#f8fafc",border:"1px solid",borderColor:msg.role==="user"?"#b0ddd0":"#e0e8f0",borderRadius:10,padding:"10px 14px",maxWidth:"80%",fontSize:13,color:"#2a3a50",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{msg.content}</div>
-                  </div>
-                ))}
-                {kbLoading && <div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white"}}>AI</div><div style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#8a9ab0",display:"flex",gap:6,alignItems:"center"}}><div style={{width:10,height:10,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Thinking…</div></div>}
-                <div ref={chatEndRef}/>
-              </div>
-              <div style={{padding:"12px 16px",borderTop:"1px solid #eef2f7",display:"flex",gap:8}}>
-                <textarea
-                  value={kbInput}
-                  onChange={e=>setKbInput(e.target.value)}
-                  onKeyDown={async e=>{
-                    if(e.key==="Enter"&&!e.shiftKey){
-                      e.preventDefault();
-                      if(!kbInput.trim()||kbLoading) return;
-                      const question = kbInput.trim();
-                      setKbInput("");
-                      setKbChat(prev=>[...prev,{role:"user",content:question}]);
-                      setKbLoading(true);
-                      try {
-                        const kbContext = kbDocs.length>0
-                          ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}`).join("\n\n---\n\n")
-                          : "No knowledge base documents have been added yet.";
-                        const res = await fetch("/api/analyze",{
-                          method:"POST",headers:{"Content-Type":"application/json"},
-                          body:JSON.stringify({
-                            model:"claude-sonnet-4-20250514",max_tokens:1000,
-                            system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
-                            messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
-                          })
-                        });
-                        const data = await res.json();
-                        const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
-                        setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                      } catch(err) {
-                        setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
+            {/* RIGHT: Detail panel OR AI Chat */}
+            {kbSelDoc ? (
+              <KbDetailPanel
+                doc={kbSelDoc}
+                onClose={()=>setKbSelDoc(null)}
+                onSave={handleKbSave}
+                onDelete={handleKbDelete}
+              />
+            ) : (
+              <div style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+                <div style={{padding:"16px 20px",borderBottom:"1px solid #eef2f7"}}>
+                  <div style={{fontSize:15,fontWeight:700,marginBottom:2}}>🧠 AI Assistant</div>
+                  <div style={{fontSize:11,color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects · or click any doc to view & edit it</div>
+                </div>
+                <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:12,minHeight:300}}>
+                  {kbChat.length===0 && <div style={{textAlign:"center",paddingTop:60,color:"#b0bcc8"}}>
+                    <div style={{fontSize:36,marginBottom:12}}>💬</div>
+                    <div style={{fontSize:13,fontWeight:500,marginBottom:8}}>Ask me anything</div>
+                    <div style={{fontSize:11,lineHeight:1.8,color:"#c0ccd8"}}>
+                      "What's the pricing for Acme Corp?"<br/>
+                      "Which vendors does my customer use?"<br/>
+                      "What's the status of the Miami project?"<br/>
+                      "Summarize my notes on this customer"
+                    </div>
+                    {kbDocs.length > 0 && <div style={{marginTop:20,fontSize:11,color:"#a0b0c0"}}>← Click any doc to view details &amp; add notes</div>}
+                  </div>}
+                  {kbChat.map((msg,i)=>(
+                    <div key={i} style={{display:"flex",flexDirection:msg.role==="user"?"row-reverse":"row",gap:10,alignItems:"flex-start"}}>
+                      <div style={{width:28,height:28,borderRadius:"50%",background:msg.role==="user"?"#0d7a6b":"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white",flexShrink:0}}>{msg.role==="user"?"You":"AI"}</div>
+                      <div style={{background:msg.role==="user"?"#f0faf6":"#f8fafc",border:"1px solid",borderColor:msg.role==="user"?"#b0ddd0":"#e0e8f0",borderRadius:10,padding:"10px 14px",maxWidth:"80%",fontSize:13,color:"#2a3a50",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{msg.content}</div>
+                    </div>
+                  ))}
+                  {kbLoading && <div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white"}}>AI</div><div style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#8a9ab0",display:"flex",gap:6,alignItems:"center"}}><div style={{width:10,height:10,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Thinking…</div></div>}
+                  <div ref={chatEndRef}/>
+                </div>
+                <div style={{padding:"12px 16px",borderTop:"1px solid #eef2f7",display:"flex",gap:8}}>
+                  <textarea
+                    value={kbInput}
+                    onChange={e=>setKbInput(e.target.value)}
+                    onKeyDown={async e=>{
+                      if(e.key==="Enter"&&!e.shiftKey){
+                        e.preventDefault();
+                        if(!kbInput.trim()||kbLoading) return;
+                        const question = kbInput.trim();
+                        setKbInput("");
+                        setKbChat(prev=>[...prev,{role:"user",content:question}]);
+                        setKbLoading(true);
+                        try {
+                          const kbContext = kbDocs.length>0
+                            ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}${d.notes?"\n\nAdditional Notes:\n"+d.notes:""}${d.items?.length?"\n\nAction Items:\n"+d.items.map(i=>"- ["+(i.done?"done":"pending")+"] "+i.text).join("\n"):""}`).join("\n\n---\n\n")
+                            : "No knowledge base documents have been added yet.";
+                          const res = await fetch("/api/analyze",{
+                            method:"POST",headers:{"Content-Type":"application/json"},
+                            body:JSON.stringify({
+                              model:"claude-sonnet-4-20250514",max_tokens:1000,
+                              system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
+                              messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
+                            })
+                          });
+                          const data = await res.json();
+                          const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
+                          setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
+                        } catch(err) {
+                          setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
+                        }
+                        setKbLoading(false);
+                        setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
                       }
-                      setKbLoading(false);
-                      setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+                    }}
+                    placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send)"
+                    rows={2}
+                    style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:13,resize:"none",fontFamily:"inherit"}}
+                  />
+                  <button onClick={async()=>{
+                    if(!kbInput.trim()||kbLoading) return;
+                    const question = kbInput.trim();
+                    setKbInput("");
+                    setKbChat(prev=>[...prev,{role:"user",content:question}]);
+                    setKbLoading(true);
+                    try {
+                      const kbContext = kbDocs.length>0
+                        ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}${d.notes?"\n\nAdditional Notes:\n"+d.notes:""}${d.items?.length?"\n\nAction Items:\n"+d.items.map(i=>"- ["+(i.done?"done":"pending")+"] "+i.text).join("\n"):""}`).join("\n\n---\n\n")
+                        : "No knowledge base documents have been added yet.";
+                      const res = await fetch("/api/analyze",{
+                        method:"POST",headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({
+                          model:"claude-sonnet-4-20250514",max_tokens:1000,
+                          system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
+                          messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
+                        })
+                      });
+                      const data = await res.json();
+                      const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
+                      setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
+                    } catch(err) {
+                      setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
                     }
-                  }}
-                  placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send)"
-                  rows={2}
-                  style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:13,resize:"none",fontFamily:"inherit"}}
-                />
-                <button onClick={async()=>{
-                  if(!kbInput.trim()||kbLoading) return;
-                  const question = kbInput.trim();
-                  setKbInput("");
-                  setKbChat(prev=>[...prev,{role:"user",content:question}]);
-                  setKbLoading(true);
-                  try {
-                    const kbContext = kbDocs.length>0
-                      ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}`).join("\n\n---\n\n")
-                      : "No knowledge base documents have been added yet.";
-                    const res = await fetch("/api/analyze",{
-                      method:"POST",headers:{"Content-Type":"application/json"},
-                      body:JSON.stringify({
-                        model:"claude-sonnet-4-20250514",max_tokens:1000,
-                        system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
-                        messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
-                      })
-                    });
-                    const data = await res.json();
-                    const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
-                    setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                  } catch(err) {
-                    setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
-                  }
-                  setKbLoading(false);
-                  setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
-                }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"0 18px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
+                    setKbLoading(false);
+                    setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+                  }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"0 18px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
