@@ -175,6 +175,7 @@ function KbDetailPanel({doc, onClose, onSave, onDelete}) {
   const [newItem, setNewItem] = useState("");
   const [saved, setSaved] = useState(false);
   const [editBody, setEditBody] = useState(false);
+  const [editNotes, setEditNotes] = useState(false);
   const [bodyVal, setBodyVal] = useState(doc.body);
 
   const catColor={Customer:"#2471a3",Pricing:"#1e8449",Vendor:"#7d3c98",Project:"#d68910",Process:"#c0392b",Other:"#5a7090"};
@@ -266,14 +267,23 @@ function KbDetailPanel({doc, onClose, onSave, onDelete}) {
 
         {/* Additional Notes */}
         <div>
-          <div style={{fontSize:10,fontWeight:700,color:"#5a7090",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>📝 Additional Notes</div>
-          <textarea
-            value={notes}
-            onChange={e=>setNotes(e.target.value)}
-            placeholder="Add context, updates, related contacts, links, or anything else relevant to this project…"
-            rows={5}
-            style={{width:"100%",background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
-          />
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#5a7090",textTransform:"uppercase",letterSpacing:"0.08em"}}>📝 Additional Notes</div>
+            <button onClick={()=>setEditNotes(v=>!v)} style={{fontSize:11,background:"#f8fafc",border:"1px solid #d0dce8",color:"#5a7090",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit"}}>{editNotes?"Done editing":"✏️ Edit"}</button>
+          </div>
+          {editNotes ? (
+            <textarea
+              value={notes}
+              onChange={e=>setNotes(e.target.value)}
+              placeholder="Add context, updates, related contacts, links, or anything else relevant to this project…"
+              rows={5}
+              style={{width:"100%",background:"#f8fafc",border:"1px solid #0d7a6b",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
+            />
+          ) : (
+            <div onClick={()=>setEditNotes(true)} style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",border:"1px solid #e8edf2",fontSize:12,color:notes.trim()?"#3a5070":"#c0ccd8",lineHeight:1.8,whiteSpace:"pre-wrap",minHeight:80,cursor:"text"}}>
+              {notes.trim() || "Click to add notes — context, updates, contacts, links…"}
+            </div>
+          )}
         </div>
       </div>
 
