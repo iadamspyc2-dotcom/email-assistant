@@ -291,7 +291,8 @@ function buildKbContext(kbData, kbDocs, question="") {
   return "KNOWLEDGE BASE:\n\n" + allDocs.map(d => {
     const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
-    const notes = d.notes?.length ? "\n\nNotes:\n" + d.notes.map(n=>n.text||n).join("\n") : "";
+    const notesArr = Array.isArray(d.notes) ? d.notes : (d.notes ? [d.notes] : []);
+    const notes = notesArr.length ? "\n\nNotes:\n" + notesArr.map(n=>n.text||n).join("\n") : "";
     const files = d.files?.length ? "\n\nAttached Files:\n" + d.files.map(f=>fileToText(f, 150, searchTerms)).join("\n\n") : "";
     return `${title}:\n${body}${notes}${files}`;
   }).join("\n\n---\n\n");
