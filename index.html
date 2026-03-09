@@ -240,10 +240,10 @@ function fileToText(f, maxRows=150, searchTerms=[]) {
         row.some(c => searchTerms.some(t => String(c ?? "").toLowerCase().includes(t.toLowerCase())))
       );
       if (matches.length > 0) {
-        resultRows = matches.slice(0, 2000);
+        resultRows = matches.slice(0, 500);
         const headerLine = header.map(c => String(c ?? "")).join("\t");
         const matchLines = resultRows.map(row => row.map(c => String(c ?? "")).join("\t"));
-        const note = matches.length > 2000 ? `\n(showing 2000 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
+        const note = matches.length > 500 ? `\n(showing 500 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
         return `[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
       } else {
         // No match found — return first rows so AI can see structure
@@ -1074,7 +1074,8 @@ function App() {
                           const question = kbInput.trim();
                           setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                           try {
-                            const kbContext = buildKbContext(kbData, kbDocs, question);
+                            const kbContextRaw = buildKbContext(kbData, kbDocs, question);
+                            const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
                             const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
                             const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
@@ -1090,7 +1091,8 @@ function App() {
                       if(!kbInput.trim()||kbLoading) return;
                       const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                       try {
-                        const kbContext = buildKbContext(kbData, kbDocs, question);
+                        const kbContextRaw = buildKbContext(kbData, kbDocs, question);
+                            const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
                         const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
                         setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
