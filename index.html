@@ -2252,29 +2252,51 @@ async function runBulkImport() {
 
   document.getElementById('bulk-btn').disabled = true;
   document.getElementById('bulk-progress').style.display = 'block';
+  document.getElementById('bulk-status').textContent = `Importing ${names.length} accounts...`;
+  document.getElementById('bulk-bar').style.width = '30%';
 
-  let created = 0;
-  let skipped = 0;
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i];
-    document.getElementById('bulk-status').textContent = `Creating "${name}"... (${i+1}/${names.length})`;
-    document.getElementById('bulk-bar').style.width = `${((i+1)/names.length)*100}%`;
+  // Filter out already-existing accounts
+  const toCreate = names.filter(name => !S.accounts.some(a => a.name.toLowerCase() === name.toLowerCase()));
+  const skipped = names.length - toCreate.length;
 
-    // Check if already exists
-    const exists = S.accounts.some(a => a.name.toLowerCase() === name.toLowerCase());
-    if (exists) { skipped++; continue; }
-
-    const { data, error } = await db.from('accounts').insert({ name, type }).select().single();
-    if (data) { S.accounts.push(data); created++; }
-    else if (error) { console.error('Insert error for', name, JSON.stringify(error)); skipped++; }
+  if (toCreate.length === 0) {
+    document.getElementById('bulk-status').textContent = `All ${names.length} accounts already exist — nothing to import.`;
+    document.getElementById('bulk-bar').style.width = '100%';
+    document.getElementById('bulk-btn').textContent = 'Close';
+    document.getElementById('bulk-btn').onclick = () => { closeModal(); renderAccounts(); };
+    document.getElementById('bulk-btn').disabled = false;
+    return;
   }
 
-  S.accounts.sort((a,b) => a.name.localeCompare(b.name));
-  const msg = created > 0
-    ? `✅ Done! Created ${created} accounts${skipped > 0 ? ', skipped ' + skipped : ''}.`
-    : `⚠️ 0 accounts created. This is usually a Supabase permissions issue — check the browser console (F12) for details.`;
-  document.getElementById('bulk-status').textContent = msg;
-  document.getElementById('bulk-bar').style.width = '100%';
+  try {
+    // Send ALL accounts in one batch request
+    const rows = toCreate.map(name => ({ name, type }));
+    document.getElementById('bulk-status').textContent = `Sending ${toCreate.length} accounts to database...`;
+    document.getElementById('bulk-bar').style.width = '60%';
+
+    const resp = await fetch('/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ table: 'accounts', operation: 'insert', data: rows })
+    });
+    const result = await resp.json();
+    document.getElementById('bulk-bar').style.width = '100%';
+
+    if (result.data) {
+      const created = Array.isArray(result.data) ? result.data : [result.data];
+      created.forEach(a => S.accounts.push(a));
+      S.accounts.sort((a,b) => a.name.localeCompare(b.name));
+      const msg = `✅ Done! Created ${created.length} accounts${skipped > 0 ? ', skipped ' + skipped + ' duplicates' : ''}.`;
+      document.getElementById('bulk-status').textContent = msg;
+    } else {
+      console.error('Bulk insert error:', JSON.stringify(result.error));
+      document.getElementById('bulk-status').textContent = `⚠️ Error: ${JSON.stringify(result.error?.message || result.error)}`;
+    }
+  } catch(err) {
+    document.getElementById('bulk-status').textContent = `⚠️ Network error: ${err.message}`;
+    console.error('Bulk import failed:', err);
+  }
+
   document.getElementById('bulk-btn').textContent = 'Close';
   document.getElementById('bulk-btn').onclick = () => { closeModal(); renderAccounts(); updateBadges(); };
   document.getElementById('bulk-btn').disabled = false;
