@@ -320,8 +320,8 @@ function fileToText(f, maxRows=150, searchTerms=[], sectionLabel="") {
   if (!f) return "";
   f = hydrateFile(f);
   const sectionPrefix = sectionLabel ? `[${sectionLabel}]\n` : "";
-  const isPayerFile  = sectionLabel.toLowerCase().includes("payer file");
-  const isVendorFile = sectionLabel.toLowerCase().includes("vendor file");
+  const isPayerFile  = sectionLabel.toLowerCase().includes("payer");
+  const isVendorFile = sectionLabel.toLowerCase().includes("vendor");
 
   // Character budget: use up to 45,000 chars for a single file's data so the AI
   // gets as many rows as possible from a large file (7000+ rows) without blowing context.
@@ -475,6 +475,10 @@ function extractSearchTerms(question) {
   // Also include individual lowercase words that are 5+ chars (likely names, not conjunctions)
   const lcSingles = lcWords.filter(w => w.length >= 5);
 
+  // ── Short uppercase abbreviations (2-4 chars like AGS, UPS, CHR, JFK) ──
+  // These are excluded from caps/lcSingles due to length, so add them explicitly
+  const abbrevs = words.filter(w => /^[A-Z]{2,4}$/.test(w));
+
   // ── Check against known payer aliases — if question mentions any, add canonical search terms ──
   const qLower = question.toLowerCase();
   const aliasTerms = [];
@@ -484,7 +488,7 @@ function extractSearchTerms(question) {
     }
   });
 
-  return [...new Set([...quoted, ...capPhrases, ...caps, ...lcPhrases, ...lcSingles, ...aliasTerms])].slice(0, 20);
+  return [...new Set([...quoted, ...capPhrases, ...caps, ...abbrevs, ...lcPhrases, ...lcSingles, ...aliasTerms])].slice(0, 20);
 }
 
 function buildKbContext(kbData, kbDocs, question="") {
@@ -512,81 +516,108 @@ function buildKbContext(kbData, kbDocs, question="") {
     : null;
   const namedFileLower = namedFileRaw?.toLowerCase() || null;
 
-  // ── Build flat doc list ──
+  // ── Also expand abbreviations to full names for Customer Profile title matching ──
+  // e.g. "AGS" → adds "accelerated global solutions" so profile titled that gets found
+  const ABBREV_EXPANSIONS = {
+    "ags": "accelerated global solutions",
+    "chr": "c.h. robinson",
+    "ups": "ups",
+    "dpw": "dp world",
+  };
+  const expandedTerms = [];
+  searchTerms.forEach(t => {
+    const exp = ABBREV_EXPANSIONS[t.toLowerCase()];
+    if (exp) expandedTerms.push(exp);
+  });
+  const allSearchTerms = expandedTerms.length > 0 ? [...new Set([...searchTerms, ...expandedTerms])] : searchTerms;
   const allDocs = [...(kbDocs||[])];
   KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
   if (!allDocs.length) return "No knowledge base documents yet.";
 
   // ── Score docs ──
   const scored = allDocs.map(d => {
-    const cat = d.category || d.tag || "KB";
+    const cat = d.category || "KB";
+    const docTag = (d.tag || "").toLowerCase(); // e.g. "payer", "vendor" on customer profiles
 
-    // Exclude the opposite PayCargo section when user specifies one
+    // Determine the file role — drives column-aware search and section labels
+    // Customer Profile docs tagged "Payer" or "Vendor" get the same treatment as PayCargo files
+    const fileRole = (cat === "paycargo_payers" || docTag === "payer") ? "payer"
+                   : (cat === "paycargo_vendors" || docTag === "vendor") ? "vendor"
+                   : null;
+
+    // Exclude the opposite PayCargo section when user explicitly specifies one
     if (sectionFilter && (cat === "paycargo_payers" || cat === "paycargo_vendors") && cat !== sectionFilter) {
       return null;
     }
 
     const hf = (d.files||[]).map(hydrateFile);
+    const docTitle = (d.title||d.name||"").toLowerCase();
 
-    // Check if this doc matches the named file
+    // Named file match
     const namedMatch = namedFileLower && (
-      (d.title||d.name||"").toLowerCase().includes(namedFileLower) ||
+      docTitle.includes(namedFileLower) ||
       hf.some(f => (f.name||"").toLowerCase().includes(namedFileLower))
     );
 
-    const hasMatchingFile = searchTerms.length > 0 && hf.some(f => {
+    // Title match — uses expanded terms so "AGS" matches "Accelerated Global Solutions" profile
+    const titleMatch = allSearchTerms.some(t => docTitle.includes(t.toLowerCase()));
+
+    // File content match — for payer/vendor structured files, only search col 0/1
+    // to avoid vendor names in col 2 contaminating payer searches
+    const hasMatchingFile = !titleMatch && searchTerms.length > 0 && hf.some(f => {
       if (f.type !== "excel") return false;
       const sheet = f.sheets?.[f.sheetNames?.[0]] || [];
-      // Only check col 0/1 for payer/vendor files to avoid cross-contamination
-      const isStructuredFile = (cat === "paycargo_payers" || cat === "paycargo_vendors");
-      return sheet.slice(1).some(row =>
-        isStructuredFile
-          ? (searchTerms.some(t => String(row[0]??"").toLowerCase().includes(t.toLowerCase())) ||
-             searchTerms.some(t => String(row[1]??"").toLowerCase().includes(t.toLowerCase())))
-          : row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase())))
-      );
+      const rows = sheet.slice(1);
+      if (fileRole) {
+        return rows.some(row =>
+          searchTerms.some(t => String(row[0]??"").toLowerCase().includes(t.toLowerCase())) ||
+          searchTerms.some(t => String(row[1]??"").toLowerCase().includes(t.toLowerCase()))
+        );
+      }
+      return rows.some(row => row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase()))));
     });
 
-    const titleMatch = searchTerms.some(t => (d.title||d.name||"").toLowerCase().includes(t.toLowerCase()));
-    const priority = namedMatch ? -1 : hasMatchingFile ? 0 : titleMatch ? 1 : 2;
+    const priority = namedMatch ? -1 : titleMatch ? 0 : hasMatchingFile ? 1 : 2;
 
-    return { doc: d, hydratedFiles: hf, priority, cat };
+    return { doc: d, hydratedFiles: hf, priority, cat, fileRole };
   })
   .filter(Boolean)
   .sort((a,b) => a.priority - b.priority);
 
-  // ── KEY FIX: if a named file was found, ONLY send that doc for its section ──
-  // This prevents other files in the same section from contaminating the results.
-  const hasNamedMatch = scored.some(s => s.priority === -1);
-  const finalScored = hasNamedMatch
+  // ── If a named file or title match found, only send matching docs for that section ──
+  const bestPriority = scored[0]?.priority ?? 99;
+  const hasDirectMatch = bestPriority <= 0;
+
+  const finalScored = hasDirectMatch
     ? scored.filter(s => {
-        const isPayerVendorCat = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
-        // For payer/vendor sections: only include the named doc; keep all other sections
-        return isPayerVendorCat ? s.priority === -1 : true;
+        // Keep all non-PayCargo docs; for PayCargo only keep the matching ones
+        const isPayerVendorSection = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
+        return isPayerVendorSection ? s.priority <= 0 : true;
       })
     : (() => {
-        // No named file — if multiple docs exist in the same section, only use the most recent one
-        // (highest numeric id) to avoid cross-file contamination
+        // No direct match — for PayCargo sections only keep the top matching file
         const seenSections = {};
         return scored.filter(s => {
-          const isPayerVendorCat = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
-          if (!isPayerVendorCat) return true;
-          // For payer/vendor sections, only keep the highest-priority (lowest score) doc per section
-          if (seenSections[s.cat] === undefined) {
-            seenSections[s.cat] = s.priority;
-            return true;
-          }
-          // Allow additional docs in the same section only if they also have a strong match
-          return s.priority <= 0;
+          const isPayerVendorSection = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
+          if (!isPayerVendorSection) return true;
+          if (!(s.cat in seenSections)) { seenSections[s.cat] = true; return true; }
+          return s.priority <= 1;
         });
       })();
 
   let totalChars = 0;
   const MAX_CHARS = 50000;
 
-  return "KNOWLEDGE BASE:\n\n" + finalScored.map(({doc: d, hydratedFiles, priority, cat}) => {
-    const sectionLabel = SECTION_LABELS[cat] || cat.toUpperCase();
-    const title = `[${sectionLabel}] ${d.title||d.name}`;
+  return "KNOWLEDGE BASE:\n\n" + finalScored.map(({doc: d, hydratedFiles, priority, cat, fileRole}) => {
+    // Build the section label — Customer Profile payer/vendor docs get a descriptive role label
+    const baseCatLabel = SECTION_LABELS[cat] || cat.toUpperCase();
+    const roleLabel = fileRole === "payer" ? "PAYER"
+                    : fileRole === "vendor" ? "VENDOR"
+                    : null;
+    const sectionLabel = (cat === "customers" && roleLabel)
+      ? `CUSTOMER PROFILE [${roleLabel}] — ${d.title||d.name}`
+      : baseCatLabel;
+    const title = `[${sectionLabel}]${cat === "customers" ? "" : " " + (d.title||d.name)}`;
     const body = d.body||d.content||d.description||"";
     const notesArr = Array.isArray(d.notes) ? d.notes : (d.notes ? [d.notes] : []);
     const notes = notesArr.length ? "\n\nNotes:\n" + notesArr.map(n=>n.text||n).join("\n") : "";
@@ -1043,8 +1074,15 @@ RESPONSE STYLE — CRITICAL:
 - If data is missing, say so in one sentence then move on. Never list "possible solutions" at length.
 - Never repeat the user's question back to them.
 
-EXCEL FILE STRUCTURES — THE SAME COMPANY CAN APPEAR IN BOTH FILES IN DIFFERENT ROLES:
-A company like "Accelerated Global Solutions" can be both a payer (in the payer file) AND appear as a vendor (in the vendor file). The file it was uploaded under determines its role. Always read the [PAYER FILE] or [VENDOR FILE] label to know which role applies.
+KNOWLEDGE BASE STRUCTURE:
+- CUSTOMER PROFILE [PAYER] = a per-company profile for one of Isaac's payer customers. The attached Excel contains that company's full transaction history — same column structure as the payer file. You can identify the company by the profile title alone.
+- CUSTOMER PROFILE [VENDOR] = same but for a vendor customer.
+- PAYER FILE = a cross-company file covering all payers together (useful for comparisons).
+- VENDOR FILE = a cross-company file covering all vendors together.
+
+When a user asks about a specific company (e.g. "show me Accelerated Global Solutions"), look for a CUSTOMER PROFILE with that company's name first — it will have the most focused data. Only fall back to the big PAYER/VENDOR files if no profile exists.
+
+You can answer questions like "show me UPS transaction history" or "which vendors did AGS stop paying?" directly from the Customer Profile without the user needing to specify a file name or tab.
 
 [PAYER FILE] column structure — subject is the PAYER (who makes payments):
   Column 0 = Payer Group      — top-level payer account (e.g. "Accelerated Global Solutions- Payer")
