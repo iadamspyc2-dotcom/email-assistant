@@ -1,4 +1,5 @@
-const https = require('https');
+import https from 'https';
+
 const SUPABASE_URL = 'https://cafgtjvajulozcvocnurj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZmd0anZhanVsb3p2b2NudXJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODIyMzAsImV4cCI6MjA4ODY1ODIzMH0.oQSeIgGpQx5ZoyYBau9oXQN8ieJ8VYUxwcGdNNhwRbA';
 
@@ -18,7 +19,11 @@ function httpsRequest(url, method, headers, body) {
     const req = https.request(opts, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, text: () => Promise.resolve(data) }));
+      res.on('end', () => resolve({
+        ok: res.statusCode >= 200 && res.statusCode < 300,
+        status: res.statusCode,
+        text: () => Promise.resolve(data)
+      }));
     });
     req.on('error', reject);
     if (body) req.write(body);
@@ -26,7 +31,7 @@ function httpsRequest(url, method, headers, body) {
   });
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -101,4 +106,4 @@ module.exports = async (req, res) => {
   } catch (err) {
     res.status(500).json({ data: null, error: { message: err.message } });
   }
-};
+}
