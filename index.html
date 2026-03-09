@@ -288,7 +288,18 @@ function buildKbContext(kbData, kbDocs, question="") {
   const allDocs = [...(kbDocs||[])];
   KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
   if (!allDocs.length) return "No knowledge base documents yet.";
-  return "KNOWLEDGE BASE:\n\n" + allDocs.map(d => {
+
+  // Score docs — those with files containing matches come first
+  const scored = allDocs.map(d => {
+    const hasMatchingFile = searchTerms.length > 0 && d.files?.some(f => {
+      if (f.type !== "excel") return false;
+      const sheet = f.sheets?.[f.sheetNames?.[0]] || [];
+      return sheet.some(row => row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase()))));
+    });
+    return { doc: d, priority: hasMatchingFile ? 0 : 1 };
+  }).sort((a,b) => a.priority - b.priority);
+
+  return "KNOWLEDGE BASE:\n\n" + scored.map(({doc: d}) => {
     const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
     const notesArr = Array.isArray(d.notes) ? d.notes : (d.notes ? [d.notes] : []);
@@ -1076,7 +1087,7 @@ function App() {
                           setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                           try {
                             const kbContextRaw = buildKbContext(kbData, kbDocs, question);
-                            const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
+                            const kbContext = kbContextRaw.length > 400000 ? kbContextRaw.slice(0, 400000) + "\n...(context truncated to fit)" : kbContextRaw;
                             const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
                             if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
@@ -1094,7 +1105,7 @@ function App() {
                       const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                       try {
                         const kbContextRaw = buildKbContext(kbData, kbDocs, question);
-                            const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
+                            const kbContext = kbContextRaw.length > 400000 ? kbContextRaw.slice(0, 400000) + "\n...(context truncated to fit)" : kbContextRaw;
                         const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
                         if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
