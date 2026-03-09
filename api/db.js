@@ -66,4 +66,3 @@ module.exports = async (req, res) => {
     res.status(500).json({ data: null, error: { message: err.message } });
   }
 };
- you want me to change this to say just db. js?
