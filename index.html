@@ -226,14 +226,14 @@ const KB_KEYS = ["projects","customers","industry","paycargo_vendors","paycargo_
 const PROFILE_TAGS = ["Vendor","Payer","Partner","Prospect","Key Account"];
 const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[], paycargo_payers:[] };
 
-function fileToText(f, maxRows=80) {
+function fileToText(f, maxRows=10000) {
   if (!f) return "";
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
     const rows = sheet.slice(0, maxRows+1);
     const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
-    const extra = sheet.length > maxRows+1 ? `\n... (${sheet.length - maxRows - 1} more rows not shown)` : "";
+    const extra = sheet.length > maxRows+1 ? `\n... (${sheet.length - maxRows - 1} more rows not shown — ask about specific companies/rows to get their data)` : "";
     return `[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
   if (f.type === "word" || f.type === "text") {
@@ -1034,7 +1034,7 @@ function App() {
                           setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                           try {
                             const kbContext = buildKbContext(kbData, kbDocs);
-                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. Answer questions using the data. When referencing spreadsheet data, cite specific numbers.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
                             const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
                             setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
@@ -1050,7 +1050,7 @@ function App() {
                       const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                       try {
                         const kbContext = buildKbContext(kbData, kbDocs);
-                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. Answer questions using the data. When referencing spreadsheet data, cite specific numbers.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
                         setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
                       } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error. Please try again."}]);}
