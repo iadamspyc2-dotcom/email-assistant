@@ -183,8 +183,12 @@ async function parseFile(file) {
     });
     const first = sheets[wb.SheetNames[0]] || [];
     const headers = first[0] || [];
+    const id = Date.now()+Math.random();
+    const saveResult = saveSheets(id, sheets);
     const rowCount = Math.max(0, first.length - 1);
-    return { ...base, type:"excel", sheetNames:wb.SheetNames, sheets, headers, rowCount, colCount:headers.length };
+    // Don't store sheets in the main kbData object — too large for localStorage
+    // They're stored separately via saveSheets and loaded via hydrateFile
+    return { ...base, id, type:"excel", sheetNames:wb.SheetNames, sheets:{}, headers, rowCount, colCount:headers.length, _sheetsStored: saveResult !== false };
   }
 
   if (ext === "docx") {
@@ -208,8 +212,40 @@ async function parseFile(file) {
 }
 
 // ══════════════════════════════════════════════
-// KB SECTIONS CONFIG
+// LARGE FILE STORAGE — sheets stored separately
 // ══════════════════════════════════════════════
+function saveSheets(fileId, sheets) {
+  try {
+    const json = JSON.stringify(sheets);
+    localStorage.setItem("aimc_sheets_" + fileId, json);
+    return true;
+  } catch(e) {
+    // Too large — try saving truncated version (first 1000 rows per sheet)
+    try {
+      const truncated = {};
+      Object.keys(sheets).forEach(name => {
+        truncated[name] = sheets[name].slice(0, 1001); // header + 1000 rows
+      });
+      localStorage.setItem("aimc_sheets_" + fileId, JSON.stringify(truncated));
+      return "truncated";
+    } catch(e2) { return false; }
+  }
+}
+
+function loadSheets(fileId) {
+  try {
+    const v = localStorage.getItem("aimc_sheets_" + fileId);
+    return v ? JSON.parse(v) : null;
+  } catch(e) { return null; }
+}
+
+function hydrateFile(f) {
+  if (f?.type === "excel" && (!f.sheets || Object.keys(f.sheets).length === 0)) {
+    const sheets = loadSheets(f.id);
+    if (sheets) return { ...f, sheets };
+  }
+  return f;
+}
 const KB_SECTIONS = [
   { key:"projects",  label:"Projects",           icon:"📋", color:"#7c3aed", bg:"#ede9fe" },
   { key:"customers", label:"Customer Profiles",  icon:"🏭", color:"#0284c7", bg:"#dbeafe", isProfiles:true },
@@ -228,6 +264,7 @@ const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[]
 
 function fileToText(f, maxRows=150, searchTerms=[]) {
   if (!f) return "";
+  f = hydrateFile(f); // load sheets from separate storage if needed
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
@@ -292,8 +329,9 @@ function buildKbContext(kbData, kbDocs, question="") {
   // Score docs — those with files containing matches come first
   const scored = allDocs.map(d => {
     const hasMatchingFile = searchTerms.length > 0 && d.files?.some(f => {
-      if (f.type !== "excel") return false;
-      const sheet = f.sheets?.[f.sheetNames?.[0]] || [];
+      const hf = hydrateFile(f);
+      if (hf.type !== "excel") return false;
+      const sheet = hf.sheets?.[hf.sheetNames?.[0]] || [];
       return sheet.some(row => row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase()))));
     });
     return { doc: d, priority: hasMatchingFile ? 0 : 1 };
@@ -342,6 +380,7 @@ function KbSectionItems({ items, sectionKey, color, selected, onSelect, onAdd, o
 // KB FILE VIEWER
 // ══════════════════════════════════════════════
 function KbFileViewer({ file, activeSheet, onSheetChange, onClose }) {
+  file = hydrateFile(file);
   if (file.type === "excel") {
     const sheet = file.sheets?.[activeSheet] || [];
     const headers = sheet[0] || [];
