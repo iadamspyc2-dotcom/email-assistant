@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>AI Mail Command</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<!-- Supabase calls now proxied through /api/db (no direct browser→Supabase connection needed) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -377,16 +377,62 @@ textarea.input{resize:vertical;min-height:80px}
 // ══════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://cafgtjvajulozcvocnurj.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZmd0anZhanVsb3p2b2NudXJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODIyMzAsImV4cCI6MjA4ODY1ODIzMH0.oQSeIgGpQx5ZoyYBau9oXQN8ieJ8VYUxwcGdNNhwRbA';
+// Supabase credentials moved to /api/db.js (server-side only)
 const API_URL = '/api/analyze';
 const APP_PASSWORD = 'AIMC2026';
 
 // ══════════════════════════════════════════════════════
 // SUPABASE INIT
 // ══════════════════════════════════════════════════════
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+// ══════════════════════════════════════════════════════
+// DB PROXY — calls go to /api/db (Vercel server → Supabase)
+// Browser never contacts Supabase directly — fixes DNS/network blocks
+// ══════════════════════════════════════════════════════
+const db = (function() {
+  async function _execute(q) {
+    const resp = await fetch('/api/db', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: q._table,
+        operation: q._op || 'select',
+        selectFields: q._select,
+        filters: q._filters,
+        data: q._data,
+        order: q._order,
+        limit: q._limit,
+        single: q._single,
+      })
+    });
+    return resp.json();
+  }
+
+  function makeChain(table) {
+    const q = {
+      _table: table, _op: null, _select: '*',
+      _filters: [], _order: null, _limit: null,
+      _single: false, _data: null,
+
+      select(fields) {
+        if (!this._op || this._op === 'select') this._op = 'select';
+        if (fields) this._select = fields;
+        return this;
+      },
+      insert(data) { this._op = 'insert'; this._data = data; return this; },
+      update(data) { this._op = 'update'; this._data = data; return this; },
+      delete() { this._op = 'delete'; return this; },
+      upsert(data) { this._op = 'upsert'; this._data = data; return this; },
+      eq(col, val) { this._filters.push({ col, op: 'eq', val }); return this; },
+      order(col, opts) { this._order = { col, asc: opts ? opts.ascending !== false : true }; return this; },
+      limit(n) { this._limit = n; return this; },
+      single() { this._single = true; return this; },
+      then(resolve, reject) { return _execute(this).then(resolve, reject); },
+    };
+    return q;
+  }
+
+  return { from: (table) => makeChain(table) };
+})();
 
 // ══════════════════════════════════════════════════════
 // STATE
