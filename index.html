@@ -224,8 +224,37 @@ const KB_SECTIONS = [
 ];
 const KB_KEYS = ["projects","customers","industry","paycargo_vendors","paycargo_payers"];
 const PROFILE_TAGS = ["Vendor","Payer","Partner","Prospect","Key Account"];
-
 const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[], paycargo_payers:[] };
+
+function fileToText(f, maxRows=80) {
+  if (!f) return "";
+  if (f.type === "excel") {
+    const sheetName = f.sheetNames?.[0];
+    const sheet = f.sheets?.[sheetName] || [];
+    const rows = sheet.slice(0, maxRows+1);
+    const lines = rows.map(row => row.map(c => String(c??""||"")).join("\t"));
+    const extra = sheet.length > maxRows+1 ? `\n... (${sheet.length - maxRows - 1} more rows not shown)` : "";
+    return `[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
+  }
+  if (f.type === "word" || f.type === "text") {
+    const text = f.extractedText || "";
+    return `[Doc: ${f.name}]\n` + text.slice(0, 4000) + (text.length > 4000 ? "\n...(truncated)" : "");
+  }
+  return `[File: ${f.name}]`;
+}
+
+function buildKbContext(kbData, kbDocs) {
+  const allDocs = [...(kbDocs||[])];
+  KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
+  if (!allDocs.length) return "No knowledge base documents yet.";
+  return "KNOWLEDGE BASE:\n\n" + allDocs.map(d => {
+    const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
+    const body = d.body||d.content||d.description||"";
+    const notes = d.notes?.length ? "\n\nNotes:\n" + d.notes.map(n=>n.text||n).join("\n") : "";
+    const files = d.files?.length ? "\n\nAttached Files:\n" + d.files.map(f=>fileToText(f)).join("\n\n") : "";
+    return `${title}:\n${body}${notes}${files}`;
+  }).join("\n\n---\n\n");
+}
 
 // ══════════════════════════════════════════════
 // KB SECTION ITEMS
@@ -267,10 +296,10 @@ function KbFileViewer({ file, activeSheet, onSheetChange, onClose }) {
     return (
       <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
         <div style={{ padding:"10px 14px", borderBottom:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:8, background:"#f8fafc" }}>
+          <button onClick={onClose} style={{ background:"#0d9488", color:"#fff", border:"none", borderRadius:6, padding:"5px 12px", cursor:"pointer", fontSize:12, fontWeight:700, flexShrink:0 }}>← Back</button>
           <span style={{ fontSize:16 }}>📊</span>
           <span style={{ fontWeight:700, fontSize:13, flex:1 }}>{file.name}</span>
           <span style={{ fontSize:11, color:"#64748b" }}>{rows.length} rows · {headers.length} cols</span>
-          <button onClick={onClose} style={{ background:"none", border:"1px solid #e2e8f0", borderRadius:5, padding:"3px 8px", cursor:"pointer", fontSize:11, color:"#64748b" }}>✕ Close</button>
         </div>
         {file.sheetNames?.length > 1 && (
           <div style={{ display:"flex", gap:4, padding:"6px 10px", borderBottom:"1px solid #e2e8f0", background:"#f8fafc", flexWrap:"wrap" }}>
@@ -304,10 +333,10 @@ function KbFileViewer({ file, activeSheet, onSheetChange, onClose }) {
     return (
       <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
         <div style={{ padding:"10px 14px", borderBottom:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:8, background:"#f8fafc" }}>
+          <button onClick={onClose} style={{ background:"#0d9488", color:"#fff", border:"none", borderRadius:6, padding:"5px 12px", cursor:"pointer", fontSize:12, fontWeight:700, flexShrink:0 }}>← Back</button>
           <span style={{ fontSize:16 }}>{file.type==="word" ? "📝" : "📄"}</span>
           <span style={{ fontWeight:700, fontSize:13, flex:1 }}>{file.name}</span>
           {file.wordCount && <span style={{ fontSize:11, color:"#64748b" }}>{file.wordCount.toLocaleString()} words</span>}
-          <button onClick={onClose} style={{ background:"none", border:"1px solid #e2e8f0", borderRadius:5, padding:"3px 8px", cursor:"pointer", fontSize:11, color:"#64748b" }}>✕ Close</button>
         </div>
         <div style={{ padding:"14px 18px", maxHeight:420, overflowY:"auto" }}>
           <pre style={{ fontSize:12, color:"#374151", lineHeight:1.8, whiteSpace:"pre-wrap", fontFamily:"Georgia,serif", margin:0 }}>{file.extractedText}</pre>
@@ -465,6 +494,8 @@ function App() {
   const [kbNoteInput, setKbNoteInput] = useState("");
   const [kbUploading, setKbUploading] = useState(false);
   const [kbPendingSection, setKbPendingSection] = useState(null);
+  const [kbMigrateModal, setKbMigrateModal] = useState(false);
+  const [kbMigrateAssign, setKbMigrateAssign] = useState({});
   const kbFileRef = useRef();
   const kbSectionFileRef = useRef();
 
@@ -887,8 +918,9 @@ function App() {
             {/* ── LEFT SIDEBAR ── */}
             <div style={{background:"#fff", border:"1px solid #dde4ec", borderRadius:12, display:"flex", flexDirection:"column", overflow:"hidden"}}>
               <div style={{padding:"13px 13px 9px", borderBottom:"1px solid #eef2f7"}}>
-                <div style={{fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:8, display:"flex", alignItems:"center", gap:6}}>
-                  <span>🧠</span> Knowledge Base
+                <div style={{fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:8, display:"flex", alignItems:"center", gap:6, justifyContent:"space-between"}}>
+                  <span style={{display:"flex",alignItems:"center",gap:6}}><span>🧠</span> Knowledge Base</span>
+                  {load("kbDocs",[]).length>0 && <button onClick={()=>{ const old=load("kbDocs",[]); const init={}; old.forEach(d=>{ init[d.id]=d.category==="Project"?"projects":d.category==="Customer"?"customers":d.category==="Pricing"?"paycargo_vendors":d.category==="Vendor"?"paycargo_vendors":d.category==="Process"?"industry":"industry"; }); setKbMigrateAssign(init); setKbMigrateModal(true); }} style={{fontSize:10,background:"#fef3c7",border:"1px solid #fcd34d",color:"#b45309",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>📦 Import old</button>}
                 </div>
                 <input value={kbSearch} onChange={e=>setKbSearch(e.target.value)} placeholder="Search all sections…"
                   style={{width:"100%", border:"1px solid #e2e8f0", borderRadius:6, padding:"5px 9px", fontSize:12, outline:"none", background:"#f8fafc", boxSizing:"border-box"}}/>
@@ -999,10 +1031,8 @@ function App() {
                           const question = kbInput.trim();
                           setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                           try {
-                            const allDocs = [...kbDocs];
-                            KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
-                            const kbContext = allDocs.length>0 ? "KNOWLEDGE BASE:\n\n" + allDocs.map(d=>`[${d.category||d.tag}] ${d.title||d.name}:\n${d.body||d.content||d.description||""}${d.notes?.length?"\n\nNotes:\n"+d.notes.map(n=>n.text||n).join("\n"):""}`).join("\n\n---\n\n") : "No knowledge base documents yet.";
-                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. Answer questions based on the knowledge base. If not in KB, say so and offer general help.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                            const kbContext = buildKbContext(kbData, kbDocs);
+                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. Answer questions using the data. When referencing spreadsheet data, cite specific numbers.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
                             const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
                             setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
@@ -1017,9 +1047,8 @@ function App() {
                       if(!kbInput.trim()||kbLoading) return;
                       const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                       try {
-                        const allDocs=[...kbDocs]; KB_KEYS.forEach(k=>{(kbData[k]||[]).forEach(d=>{allDocs.push({...d,category:k});});});
-                        const kbContext=allDocs.length>0?"KNOWLEDGE BASE:\n\n"+allDocs.map(d=>`[${d.category||d.tag}] ${d.title||d.name}:\n${d.body||d.content||d.description||""}${d.notes?.length?"\n\nNotes:\n"+d.notes.map(n=>n.text||n).join("\n"):""}`).join("\n\n---\n\n"):"No knowledge base documents yet.";
-                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. Answer questions based on the knowledge base.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                        const kbContext = buildKbContext(kbData, kbDocs);
+                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:2000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. Answer questions using the data. When referencing spreadsheet data, cite specific numbers.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
                         setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
                       } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error. Please try again."}]);}
@@ -1029,6 +1058,60 @@ function App() {
                 </div>
               )}
             </div>
+
+            {/* ── MIGRATE OLD DATA MODAL ── */}
+            {kbMigrateModal && (()=>{
+              const oldDocs = load("kbDocs",[]);
+              const sectionOptions = [
+                {key:"projects", label:"📋 Projects"},
+                {key:"customers", label:"🏭 Customer Profiles"},
+                {key:"industry", label:"🌐 Industry Knowledge"},
+                {key:"paycargo_vendors", label:"📦 PayCargo › Vendors"},
+                {key:"paycargo_payers", label:"💳 PayCargo › Payers"},
+              ];
+              return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:200,padding:20}}>
+                <div style={{background:"#fff",borderRadius:16,padding:24,width:560,maxHeight:"80vh",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <h2 style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>📦 Import Old Knowledge Base ({oldDocs.length} items)</h2>
+                    <button onClick={()=>setKbMigrateModal(false)} style={{background:"none",border:"1px solid #e2e8f0",borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:12}}>✕</button>
+                  </div>
+                  <p style={{fontSize:12,color:"#64748b",marginBottom:14}}>Assign each item to a section, then click Import All.</p>
+                  <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                    {oldDocs.map(doc=>(
+                      <div key={doc.id} style={{display:"flex",alignItems:"center",gap:10,background:"#f8fafc",borderRadius:8,padding:"8px 12px",border:"1px solid #e2e8f0"}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:600,fontSize:13,color:"#1e293b"}}>{doc.title}</div>
+                          <div style={{fontSize:11,color:"#94a3b8"}}>{doc.category} · {doc.date}</div>
+                        </div>
+                        <select value={kbMigrateAssign[doc.id]||"projects"} onChange={e=>setKbMigrateAssign(p=>({...p,[doc.id]:e.target.value}))}
+                          style={{border:"1px solid #e2e8f0",borderRadius:6,padding:"4px 8px",fontSize:12,background:"#fff",cursor:"pointer"}}>
+                          {sectionOptions.map(s=><option key={s.key} value={s.key}>{s.label}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>{
+                      const updated = {...kbData};
+                      oldDocs.forEach(doc=>{
+                        const sk = kbMigrateAssign[doc.id]||"projects";
+                        const entry = { id:Date.now()+Math.random(), title:doc.title, content:doc.body||"", tag:doc.category||"", notes: doc.notes?(typeof doc.notes==="string"?[{id:Date.now(),text:doc.notes,date:doc.date}]:[]):[],
+                          files:[], date:doc.date||new Date().toLocaleDateString(), items:doc.items||[] };
+                        updated[sk] = [...(updated[sk]||[]), entry];
+                      });
+                      kbPersist(updated);
+                      // Clear old docs so button disappears
+                      try{localStorage.removeItem("aimc_kbDocs");}catch(e){}
+                      setKbDocs([]);
+                      setKbMigrateModal(false);
+                    }} style={{flex:1,background:"#0d7a6b",color:"#fff",border:"none",borderRadius:8,padding:"10px",cursor:"pointer",fontWeight:700,fontSize:13}}>
+                      ✅ Import All to New Sections
+                    </button>
+                    <button onClick={()=>setKbMigrateModal(false)} style={{background:"#f1f5f9",border:"1px solid #e2e8f0",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontSize:13}}>Cancel</button>
+                  </div>
+                </div>
+              </div>;
+            })()}
 
             {/* ── ADD MODAL ── */}
             {kbModal && (
