@@ -443,15 +443,20 @@ const PAYER_ALIASES = [
 function tryLogin() {
   const pw = document.getElementById('pw-input').value.trim();
   if (pw === APP_PASSWORD) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app-shell').style.display = 'flex';
-    initApp();
+    sessionStorage.setItem('aimc_auth', '1');
+    showApp();
   } else {
     document.getElementById('login-err').textContent = 'Incorrect password.';
     document.getElementById('pw-input').focus();
   }
 }
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+  initApp();
+}
 document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+if (sessionStorage.getItem('aimc_auth') === '1') { showApp(); }
 
 // ══════════════════════════════════════════════════════
 // INIT
@@ -2213,12 +2218,16 @@ async function runBulkImport() {
     const exists = S.accounts.some(a => a.name.toLowerCase() === name.toLowerCase());
     if (exists) { skipped++; continue; }
 
-    const { data } = await db.from('accounts').insert({ name, type, health: 'green' }).select().single();
+    const { data, error } = await db.from('accounts').insert({ name, type, health: 'green' }).select().single();
     if (data) { S.accounts.push(data); created++; }
+    else if (error) { console.error('Insert error for', name, error); skipped++; }
   }
 
   S.accounts.sort((a,b) => a.name.localeCompare(b.name));
-  document.getElementById('bulk-status').textContent = `✅ Done! Created ${created} accounts${skipped > 0 ? `, skipped ${skipped} duplicates` : ''}.`;
+  const msg = created > 0
+    ? `✅ Done! Created ${created} accounts${skipped > 0 ? ', skipped ' + skipped : ''}.`
+    : `⚠️ 0 accounts created. This is usually a Supabase permissions issue — check the browser console (F12) for details.`;
+  document.getElementById('bulk-status').textContent = msg;
   document.getElementById('bulk-bar').style.width = '100%';
   document.getElementById('bulk-btn').textContent = 'Close';
   document.getElementById('bulk-btn').onclick = () => { closeModal(); renderAccounts(); updateBadges(); };
