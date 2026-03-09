@@ -316,9 +316,11 @@ const KB_KEYS = ["projects","customers","industry","paycargo_vendors","paycargo_
 const PROFILE_TAGS = ["Vendor","Payer","Partner","Prospect","Key Account"];
 const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[], paycargo_payers:[] };
 
-function fileToText(f, maxRows=150, searchTerms=[]) {
+function fileToText(f, maxRows=150, searchTerms=[], sectionLabel="") {
   if (!f) return "";
   f = hydrateFile(f);
+  // Prefix every file header with its section so the AI always knows context
+  const sectionPrefix = sectionLabel ? `[${sectionLabel}]\n` : "";
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
@@ -334,16 +336,16 @@ function fileToText(f, maxRows=150, searchTerms=[]) {
         const headerLine = header.map(c => String(c ?? "")).join("\t");
         const matchLines = resultRows.map(row => row.map(c => String(c ?? "")).join("\t"));
         const note = matches.length > 500 ? `\n(showing 200 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
-        return `[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
       } else {
         const fallback = sheet.slice(0, maxRows+1).map(row => row.map(c => String(c ?? "")).join("\t"));
-        return `[Excel: ${f.name} — ${f.rowCount} rows total]\nNo rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\nNo rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
       }
     }
     const rows = sheet.slice(0, maxRows+1);
     const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
     const extra = sheet.length > maxRows+1 ? `\n(${sheet.length - maxRows - 1} more rows not shown — AI will search by company name automatically)` : "";
-    return `[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
+    return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
   if (f.type === "word" || f.type === "text") {
     const text = f.extractedText || "";
@@ -430,33 +432,80 @@ function extractSearchTerms(question) {
 
 function buildKbContext(kbData, kbDocs, question="") {
   const searchTerms = question ? extractSearchTerms(question) : [];
+  const qLower = (question||"").toLowerCase();
+
+  // ── Detect whether user is asking specifically about payers, vendors, or both ──
+  // If they say "payer file", "under payer", "payers tab" etc → only include payer docs
+  // If they say "vendor file", "under vendor" etc → only include vendor docs
+  // Otherwise include everything
+  const wantsPayers  = /\bpayer(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
+  const wantsVendors = /\bvendor(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
+  // Only filter if user explicitly names ONE side; if both or neither, include all
+  const sectionFilter = (wantsPayers && !wantsVendors) ? "paycargo_payers"
+                      : (!wantsPayers && wantsVendors) ? "paycargo_vendors"
+                      : null;
+
+  // Also detect a specific file name mentioned in the question (e.g. "Payer Data 07-1-2025")
+  const namedFile = question ? (question.match(/named[:\s]+([^,\n]+)/i)?.[1]?.trim().toLowerCase() || null) : null;
+
   const allDocs = [...(kbDocs||[])];
   KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
   if (!allDocs.length) return "No knowledge base documents yet.";
 
+  const SECTION_LABELS = {
+    paycargo_payers:  "PAYER FILE — these companies MAKE payments (your customers paying vendors)",
+    paycargo_vendors: "VENDOR FILE — these companies RECEIVE payments (being paid by payers)",
+    projects:         "PROJECT",
+    customers:        "CUSTOMER PROFILE",
+    industry:         "INDUSTRY KNOWLEDGE",
+  };
+
   const scored = allDocs.map(d => {
+    const cat = d.category || d.tag || "KB";
+
+    // If user specified a section, exclude docs from the other PayCargo section entirely
+    if (sectionFilter && (cat === "paycargo_payers" || cat === "paycargo_vendors") && cat !== sectionFilter) {
+      return null; // will be filtered out
+    }
+
     const hf = (d.files||[]).map(hydrateFile);
+
+    // If user named a specific file, boost that file's entry to top priority
+    const namedMatch = namedFile && (
+      (d.title||d.name||"").toLowerCase().includes(namedFile) ||
+      hf.some(f => f.name?.toLowerCase().includes(namedFile))
+    );
+
     const hasMatchingFile = searchTerms.length > 0 && hf.some(f => {
       if (f.type !== "excel") return false;
       const sheet = f.sheets?.[f.sheetNames?.[0]] || [];
       return sheet.some(row => row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase()))));
     });
     const titleMatch = searchTerms.some(t => (d.title||d.name||"").toLowerCase().includes(t.toLowerCase()));
-    return { doc: d, hydratedFiles: hf, priority: hasMatchingFile ? 0 : titleMatch ? 1 : 2 };
-  }).sort((a,b) => a.priority - b.priority);
+
+    const priority = namedMatch ? -1   // named file gets highest priority
+                   : hasMatchingFile ? 0
+                   : titleMatch ? 1
+                   : 2;
+
+    return { doc: d, hydratedFiles: hf, priority, cat };
+  })
+  .filter(Boolean)
+  .sort((a,b) => a.priority - b.priority);
 
   let totalChars = 0;
   const MAX_CHARS = 60000;
 
-  return "KNOWLEDGE BASE:\n\n" + scored.map(({doc: d, hydratedFiles, priority}) => {
-    const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
+  return "KNOWLEDGE BASE:\n\n" + scored.map(({doc: d, hydratedFiles, priority, cat}) => {
+    const sectionLabel = SECTION_LABELS[cat] || cat.toUpperCase();
+    const title = `[${sectionLabel}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
     const notesArr = Array.isArray(d.notes) ? d.notes : (d.notes ? [d.notes] : []);
     const notes = notesArr.length ? "\n\nNotes:\n" + notesArr.map(n=>n.text||n).join("\n") : "";
     let files = "";
     if (d.files?.length) {
       if (priority <= 1 && totalChars < MAX_CHARS) {
-        files = "\n\nAttached Files:\n" + hydratedFiles.map(f=>fileToText(f, 150, searchTerms)).join("\n\n");
+        files = "\n\nAttached Files:\n" + hydratedFiles.map(f=>fileToText(f, 150, searchTerms, sectionLabel)).join("\n\n");
       } else {
         files = `\n\n[${d.files.length} file(s) attached — not shown to save space]`;
       }
@@ -889,15 +938,22 @@ function App() {
   // ══════════════════════════════════════════════
   const KB_SYSTEM_PROMPT = `You are an AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base, Excel data, vendor lists, and customer profiles.
 
+PAYER vs VENDOR — THIS IS CRITICAL. NEVER CONFUSE THESE:
+- PAYER = a company that MAKES payments through PayCargo (Isaac's customers). Files stored under "PayCargo › Payers" are labeled [PAYER FILE].
+- VENDOR = a company that RECEIVES payments through PayCargo (being paid by payers). Files stored under "PayCargo › Vendors" are labeled [VENDOR FILE].
+- If a user asks about a payer (e.g. "Accelerated Global Solutions- Payer"), look ONLY in [PAYER FILE] data.
+- If a user says "using the payer file" or "under payers", ONLY use [PAYER FILE] data. Never pull vendor file data for that answer.
+- Do NOT label a company as "(as a Vendor)" if the data came from a PAYER FILE. The file label tells you the context.
+- The same company name might appear in both files in different roles — always state which file the data came from.
+
 RESPONSE STYLE — CRITICAL:
 - Write in natural, conversational prose. No markdown headers, no hash symbols (#), no excessive asterisks.
 - Use **bold** sparingly for key terms or numbers only. Never bold entire sentences or section titles.
 - Use short bullet points only when listing 3+ items. Keep each bullet to one line.
 - Start with a 2–3 sentence plain-English summary of what you found.
 - End with one concise offer: "Want me to dig deeper into [specific thing]?" — don't ask multiple questions.
-- If data is missing or unclear, say so in one sentence then move on. Don't list "possible solutions" at length.
+- If data is missing, say so in one sentence then move on. Never list "possible solutions" at length.
 - Never repeat the user's question back to them.
-- Aim for responses that feel like a knowledgeable colleague texting you a quick summary, not a formal report.
 
 PAYERS EXCEL FILE — DATA STRUCTURE:
 The file has a 3-level row hierarchy:
@@ -906,7 +962,7 @@ The file has a 3-level row hierarchy:
   Level 3 — Vendor name (the company the payer is paying through PayCargo)
 Monthly transaction/volume columns follow the name columns.
 
-KNOWN PAYER GROUPS (search for these exact names or substrings):
+KNOWN PAYER GROUPS (search for these exact names or substrings in PAYER FILE data):
 - UPS-Payers (US)
 - Accelerated Global Solutions- Payer  [also search: "Accelerated Global", "AGS"]
 - C.H. Robinson
@@ -920,12 +976,12 @@ KNOWN PAYER GROUPS (search for these exact names or substrings):
 - Odyssey Logistics
 - Amazon
 - CV INTERNATIONAL, INC.
-- Accelerated Global Solutions (CAN)-Payer  [also search: "Accelerated Global", "CAN"]
+- Accelerated Global Solutions (CAN)-Payer
 
 ANALYSIS RULES:
 - Always break down by Branch/Location — never give one aggregate total for a payer group.
 - Cite actual numbers from the data.
-- When asked about payment decreases or stops, compare recent months vs earlier months in the data.
+- When asked about payment decreases or stops, compare recent months vs earlier months.
 - The VENDORS file has a similar structure: vendor group → individual locations.`;
 
   async function sendKbMessage(question) {
