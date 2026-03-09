@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,8 +23,9 @@
   .slidedown { animation:slidedown 0.2s ease; }
   .hov:hover { background:#eef2f7 !important; border-color:#b0c0d0 !important; }
   .kb-card:hover { background:#f5faf8 !important; border-color:#0d7a6b !important; cursor:pointer; }
-  input,textarea { outline:none; }
-  input:focus,textarea:focus { border-color:#0d7a6b !important; }
+  .kb-item:hover { background:#f0faf6 !important; }
+  input,textarea,select { outline:none; }
+  input:focus,textarea:focus,select:focus { border-color:#0d7a6b !important; }
 </style>
 </head>
 <body>
@@ -148,9 +150,6 @@ function ExportModal({text, onClose}) {
         <button onClick={()=>{navigator.clipboard?.writeText(text);setOk(true);setTimeout(()=>setOk(false),2000);}} style={{flex:1,background:ok?"#0a9e6b":"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"12px",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit",transition:"all 0.2s"}}>{ok?"✓ Copied! Now paste into Claude.ai →":"📋 Copy All — Then Paste into Claude.ai"}</button>
         <button onClick={onClose} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:8,padding:"12px 18px",cursor:"pointer",fontFamily:"inherit",fontSize:13}}>Close</button>
       </div>
-      <div style={{marginTop:12,padding:"10px 14px",background:"#f0f6ff",borderRadius:8,border:"1px solid #c0d4f0"}}>
-        <div style={{fontSize:12,color:"#3a5a90"}}><strong>How to use:</strong> Copy above → Open claude.ai in a new tab → Start a new chat → Paste → Ask Claude anything about your customers, projects, or follow-ups!</div>
-      </div>
     </div>
   </div>;
 }
@@ -168,138 +167,271 @@ function ConfirmModal({onConfirm, onCancel}) {
   </div>;
 }
 
-// ── KB Detail Panel ──────────────────────────────────────────────
-function KbDetailPanel({doc, onClose, onSave, onDelete}) {
-  const [notes, setNotes] = useState(doc.notes || "");
-  const [items, setItems] = useState(doc.items || []);
-  const [newItem, setNewItem] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [editBody, setEditBody] = useState(false);
-  const [editNotes, setEditNotes] = useState(false);
-  const [bodyVal, setBodyVal] = useState(doc.body);
+// ══════════════════════════════════════════════
+// KNOWLEDGE BASE — FILE PARSER
+// ══════════════════════════════════════════════
+async function parseFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  const base = { id: Date.now()+Math.random(), name: file.name, ext, size: (file.size/1024).toFixed(1)+" KB", date: new Date().toLocaleDateString() };
 
-  const catColor={Customer:"#2471a3",Pricing:"#1e8449",Vendor:"#7d3c98",Project:"#d68910",Process:"#c0392b",Other:"#5a7090"};
-
-  function handleSave() {
-    onSave({...doc, notes, items, body: bodyVal});
-    setEditNotes(false);
-    setEditBody(false);
-    setSaved(true);
-    setTimeout(()=>setSaved(false), 1800);
+  if (["xlsx","xls","csv"].includes(ext)) {
+    const buf = await file.arrayBuffer();
+    const wb = window.XLSX.read(buf, { type:"array" });
+    const sheets = {};
+    wb.SheetNames.forEach(n => {
+      sheets[n] = window.XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:"" });
+    });
+    const first = sheets[wb.SheetNames[0]] || [];
+    const headers = first[0] || [];
+    const rowCount = Math.max(0, first.length - 1);
+    return { ...base, type:"excel", sheetNames:wb.SheetNames, sheets, headers, rowCount, colCount:headers.length };
   }
 
-  function addItem() {
-    if (!newItem.trim()) return;
-    setItems(prev=>[...prev, {id:Date.now(), text:newItem.trim(), done:false}]);
-    setNewItem("");
+  if (ext === "docx") {
+    // Use mammoth via CDN-loaded script if available, else read as binary
+    if (window.mammoth) {
+      const buf = await file.arrayBuffer();
+      const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
+      const text = result.value || "";
+      return { ...base, type:"word", extractedText:text, wordCount:text.split(/\s+/).filter(Boolean).length };
+    } else {
+      return { ...base, type:"word", extractedText:"(Word doc uploaded — mammoth.js not loaded)", wordCount:0 };
+    }
   }
 
-  function toggleItem(id) {
-    setItems(prev=>prev.map(it=>it.id===id?{...it,done:!it.done}:it));
+  if (["txt","md","csv"].includes(ext)) {
+    const text = await file.text();
+    return { ...base, type:"text", extractedText:text };
   }
 
-  function removeItem(id) {
-    setItems(prev=>prev.filter(it=>it.id!==id));
-  }
+  return { ...base, type:"binary" };
+}
 
+// ══════════════════════════════════════════════
+// KB SECTIONS CONFIG
+// ══════════════════════════════════════════════
+const KB_SECTIONS = [
+  { key:"projects",  label:"Projects",           icon:"📋", color:"#7c3aed", bg:"#ede9fe" },
+  { key:"customers", label:"Customer Profiles",  icon:"🏭", color:"#0284c7", bg:"#dbeafe", isProfiles:true },
+  { key:"industry",  label:"Industry Knowledge", icon:"🌐", color:"#b45309", bg:"#fef3c7" },
+  {
+    key:"paycargo", label:"PayCargo Knowledge", icon:"🏢", color:"#0d9488", bg:"#ccfbf1",
+    children:[
+      { key:"paycargo_vendors", label:"Vendors", icon:"📦", color:"#059669", bg:"#d1fae5" },
+      { key:"paycargo_payers",  label:"Payers",  icon:"💳", color:"#0284c7", bg:"#dbeafe" },
+    ]
+  },
+];
+const KB_KEYS = ["projects","customers","industry","paycargo_vendors","paycargo_payers"];
+const PROFILE_TAGS = ["Vendor","Payer","Partner","Prospect","Key Account"];
+
+const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[], paycargo_payers:[] };
+
+// ══════════════════════════════════════════════
+// KB SECTION ITEMS
+// ══════════════════════════════════════════════
+function KbSectionItems({ items, sectionKey, color, selected, onSelect, onAdd, onUpload, indent }) {
   return (
-    <div style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",overflow:"hidden"}} className="fadein">
-      {/* Header */}
-      <div style={{padding:"16px 20px",borderBottom:"1px solid #eef2f7",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-        <div style={{flex:1,marginRight:12}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-            <span style={{fontSize:10,padding:"2px 8px",borderRadius:4,background:"#f0f4f8",color:catColor[doc.category]||"#5a7090",border:"1px solid #e0e8f0",fontWeight:700}}>{doc.category}</span>
-            <span style={{fontSize:11,color:"#b0bcc8"}}>{doc.date}</span>
+    <div>
+      {items.map(item => (
+        <div key={item.id} className="kb-item" onClick={() => onSelect(item)}
+          style={{ padding:`8px 10px 8px ${indent}px`, borderBottom:"1px solid #f1f5f9", cursor:"pointer",
+            background: selected?.item?.id === item.id ? color+"15" : "none",
+            borderLeft: selected?.item?.id === item.id ? `3px solid ${color}` : "3px solid transparent" }}>
+          <div style={{ fontWeight:600, fontSize:12, color: selected?.item?.id===item.id ? color : "#374151", marginBottom:2 }}>
+            {item.title || item.name}
           </div>
-          <div style={{fontSize:16,fontWeight:700,color:"#1a2540",lineHeight:1.3}}>{doc.title}</div>
-        </div>
-        <div style={{display:"flex",gap:6}}>
-          <button onClick={()=>onDelete(doc.id)} style={{background:"transparent",border:"1px solid #fcc",color:"#c0392b",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:600}}>🗑 Delete</button>
-          <button onClick={onClose} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>✕</button>
-        </div>
-      </div>
-
-      {/* Scrollable body */}
-      <div style={{flex:1,overflowY:"auto",padding:"18px 20px",display:"flex",flexDirection:"column",gap:16}}>
-
-        {/* Original Content */}
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#0d7a6b",textTransform:"uppercase",letterSpacing:"0.08em"}}>📄 Content</div>
-            <button onClick={()=>setEditBody(v=>!v)} style={{fontSize:11,background:"#f8fafc",border:"1px solid #d0dce8",color:"#5a7090",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit"}}>{editBody?"Done editing":"✏️ Edit"}</button>
-          </div>
-          {editBody ? (
-            <textarea
-              value={bodyVal}
-              onChange={e=>setBodyVal(e.target.value)}
-              rows={6}
-              style={{width:"100%",background:"#f8fafc",border:"1px solid #0d7a6b",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
-            />
-          ) : (
-            <div style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",border:"1px solid #e8edf2",fontSize:12,color:"#3a5070",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:180,overflowY:"auto"}}>
-              {bodyVal}
-            </div>
-          )}
-        </div>
-
-        {/* Action Items */}
-        <div>
-          <div style={{fontSize:10,fontWeight:700,color:"#d68910",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>⚡ Action Items / Next Steps</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
-            {items.length===0 && <div style={{fontSize:12,color:"#c0ccd8",fontStyle:"italic",padding:"8px 0"}}>No action items yet — add one below</div>}
-            {items.map(it=>(
-              <div key={it.id} style={{display:"flex",alignItems:"center",gap:8,background:"#fffbf0",border:"1px solid #f0e8d0",borderRadius:7,padding:"7px 10px"}}>
-                <input type="checkbox" checked={it.done} onChange={()=>toggleItem(it.id)} style={{width:14,height:14,cursor:"pointer",accentColor:"#d68910",flexShrink:0}}/>
-                <span style={{flex:1,fontSize:12,color:it.done?"#b0bcc8":"#2a3a50",textDecoration:it.done?"line-through":"none"}}>{it.text}</span>
-                <button onClick={()=>removeItem(it.id)} style={{background:"transparent",border:"none",color:"#c0ccd8",cursor:"pointer",fontSize:13,padding:0,lineHeight:1,flexShrink:0}}>×</button>
-              </div>
-            ))}
-          </div>
-          <div style={{display:"flex",gap:6}}>
-            <input
-              value={newItem}
-              onChange={e=>setNewItem(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); addItem(); } }}
-              placeholder="Add action item… (Enter to add)"
-              style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:6,padding:"7px 10px",color:"#1a2540",fontSize:12,fontFamily:"inherit"}}
-            />
-            <button onClick={addItem} style={{background:"#fef3e2",border:"1px solid #f9d99a",color:"#d68910",borderRadius:6,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>+ Add</button>
+          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+            {(item.tag||item.category) && <span style={{ fontSize:10, background:"#f1f5f9", color:"#64748b", borderRadius:3, padding:"1px 5px" }}>{item.tag||item.category}</span>}
+            {item.files?.length > 0 && <span style={{ fontSize:10, color:"#0d9488" }}>📎 {item.files.length}</span>}
+            <span style={{ fontSize:10, color:"#94a3b8" }}>{item.date}</span>
           </div>
         </div>
-
-        {/* Additional Notes */}
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#5a7090",textTransform:"uppercase",letterSpacing:"0.08em"}}>📝 Additional Notes</div>
-            <button onClick={()=>setEditNotes(v=>!v)} style={{fontSize:11,background:"#f8fafc",border:"1px solid #d0dce8",color:"#5a7090",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:"inherit"}}>{editNotes?"Done editing":"✏️ Edit"}</button>
-          </div>
-          {editNotes ? (
-            <textarea
-              value={notes}
-              onChange={e=>setNotes(e.target.value)}
-              placeholder="Add context, updates, related contacts, links, or anything else relevant to this project…"
-              rows={5}
-              style={{width:"100%",background:"#f8fafc",border:"1px solid #0d7a6b",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:12,resize:"vertical",fontFamily:"inherit",lineHeight:1.7}}
-            />
-          ) : (
-            <div onClick={()=>setEditNotes(true)} style={{background:"#f8fafc",borderRadius:8,padding:"12px 14px",border:"1px solid #e8edf2",fontSize:12,color:notes.trim()?"#3a5070":"#c0ccd8",lineHeight:1.8,whiteSpace:"pre-wrap",minHeight:80,cursor:"text"}}>
-              {notes.trim() || "Click to add notes — context, updates, contacts, links…"}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Save footer */}
-      <div style={{padding:"12px 20px",borderTop:"1px solid #eef2f7",display:"flex",gap:8}}>
-        <button onClick={handleSave} style={{flex:1,background:saved?"#0a9e6b":"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"10px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",transition:"all 0.2s"}}>
-          {saved ? "✓ Saved!" : "💾 Save Changes"}
-        </button>
-        <button onClick={onClose} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>Close</button>
+      ))}
+      <div style={{ display:"flex", borderBottom:"1px solid #f1f5f9" }}>
+        <button onClick={onAdd} style={{ flex:1, background:"none", border:"none", padding:`7px 10px 7px ${indent}px`, cursor:"pointer", textAlign:"left", fontSize:12, color, fontWeight:600, opacity:0.85 }}>+ Add new</button>
+        <button onClick={() => onUpload(sectionKey)} style={{ background:"none", border:"none", padding:"7px 12px", cursor:"pointer", fontSize:11, color:"#94a3b8", fontWeight:600 }} title="Upload file">⬆ File</button>
       </div>
     </div>
   );
 }
 
+// ══════════════════════════════════════════════
+// KB FILE VIEWER
+// ══════════════════════════════════════════════
+function KbFileViewer({ file, activeSheet, onSheetChange, onClose }) {
+  if (file.type === "excel") {
+    const sheet = file.sheets?.[activeSheet] || [];
+    const headers = sheet[0] || [];
+    const rows = sheet.slice(1);
+    return (
+      <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
+        <div style={{ padding:"10px 14px", borderBottom:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:8, background:"#f8fafc" }}>
+          <span style={{ fontSize:16 }}>📊</span>
+          <span style={{ fontWeight:700, fontSize:13, flex:1 }}>{file.name}</span>
+          <span style={{ fontSize:11, color:"#64748b" }}>{rows.length} rows · {headers.length} cols</span>
+          <button onClick={onClose} style={{ background:"none", border:"1px solid #e2e8f0", borderRadius:5, padding:"3px 8px", cursor:"pointer", fontSize:11, color:"#64748b" }}>✕ Close</button>
+        </div>
+        {file.sheetNames?.length > 1 && (
+          <div style={{ display:"flex", gap:4, padding:"6px 10px", borderBottom:"1px solid #e2e8f0", background:"#f8fafc", flexWrap:"wrap" }}>
+            {file.sheetNames.map(s => (
+              <button key={s} onClick={() => onSheetChange(s)}
+                style={{ background: s===activeSheet ? "#0d9488" : "#fff", color: s===activeSheet ? "#fff" : "#374151",
+                  border:"1px solid #e2e8f0", borderRadius:5, padding:"2px 9px", cursor:"pointer", fontSize:11, fontWeight: s===activeSheet ? 700 : 400 }}>{s}</button>
+            ))}
+          </div>
+        )}
+        <div style={{ overflowX:"auto", maxHeight:380 }}>
+          <table style={{ borderCollapse:"collapse", fontSize:12, width:"100%" }}>
+            <thead>
+              <tr style={{ background:"#f1f5f9", position:"sticky", top:0 }}>
+                {headers.map((h,i) => <th key={i} style={{ border:"1px solid #e2e8f0", padding:"6px 10px", textAlign:"left", fontWeight:700, color:"#374151", whiteSpace:"nowrap" }}>{h||`Col ${i+1}`}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row,ri) => (
+                <tr key={ri} style={{ background: ri%2===0 ? "#fff" : "#f8fafc" }}>
+                  {headers.map((_,ci) => <td key={ci} style={{ border:"1px solid #f1f5f9", padding:"5px 10px", color:"#374151", maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{row[ci]??""}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+  if (file.type === "word" || file.type === "text") {
+    return (
+      <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:12, marginBottom:14, overflow:"hidden" }}>
+        <div style={{ padding:"10px 14px", borderBottom:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:8, background:"#f8fafc" }}>
+          <span style={{ fontSize:16 }}>{file.type==="word" ? "📝" : "📄"}</span>
+          <span style={{ fontWeight:700, fontSize:13, flex:1 }}>{file.name}</span>
+          {file.wordCount && <span style={{ fontSize:11, color:"#64748b" }}>{file.wordCount.toLocaleString()} words</span>}
+          <button onClick={onClose} style={{ background:"none", border:"1px solid #e2e8f0", borderRadius:5, padding:"3px 8px", cursor:"pointer", fontSize:11, color:"#64748b" }}>✕ Close</button>
+        </div>
+        <div style={{ padding:"14px 18px", maxHeight:420, overflowY:"auto" }}>
+          <pre style={{ fontSize:12, color:"#374151", lineHeight:1.8, whiteSpace:"pre-wrap", fontFamily:"Georgia,serif", margin:0 }}>{file.extractedText}</pre>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:12, padding:16, marginBottom:14, textAlign:"center", color:"#94a3b8" }}>
+      <div style={{ fontSize:28, marginBottom:6 }}>📎</div>
+      <div style={{ fontWeight:600, fontSize:13 }}>{file.name}</div>
+      <div style={{ fontSize:12, marginTop:4 }}>Preview not available for .{file.ext} files</div>
+      <button onClick={onClose} style={{ marginTop:10, background:"#f1f5f9", border:"1px solid #e2e8f0", borderRadius:5, padding:"4px 12px", cursor:"pointer", fontSize:11 }}>Close</button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// KB DETAIL PANEL
+// ══════════════════════════════════════════════
+function KbDetailPanel({ selected, onDelete, onAddNote, onUploadFile, noteInput, setNoteInput }) {
+  const { item } = selected;
+  const [viewingFile, setViewingFile] = useState(null);
+  const [activeSheet, setActiveSheet] = useState(null);
+
+  function openFile(f) {
+    setViewingFile(f);
+    setActiveSheet(f.sheetNames?.[0] || null);
+  }
+
+  return (
+    <div style={{ flex:1, overflowY:"auto", padding:22 }} className="fadein">
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16 }}>
+        <div>
+          <h2 style={{ fontSize:18, fontWeight:800, color:"#0f172a", margin:0 }}>{item.title||item.name}</h2>
+          <div style={{ display:"flex", gap:8, marginTop:5, alignItems:"center" }}>
+            {(item.tag||item.category) && <span style={{ fontSize:11, background:"#f1f5f9", color:"#64748b", borderRadius:5, padding:"2px 9px" }}>{item.tag||item.category}</span>}
+            <span style={{ fontSize:11, color:"#94a3b8" }}>{item.date}</span>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onUploadFile} style={{ background:"#f1f5f9", border:"1px solid #e2e8f0", borderRadius:7, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>⬆ Upload File</button>
+          <button onClick={() => onDelete(item.id)} style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:7, padding:"6px 12px", cursor:"pointer", fontSize:12, color:"#dc2626" }}>Delete</button>
+        </div>
+      </div>
+
+      {/* Overview */}
+      {(item.description||item.content) && !viewingFile && (
+        <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px 16px", marginBottom:14 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:6, textTransform:"uppercase", letterSpacing:0.5 }}>Overview</div>
+          <p style={{ fontSize:13, color:"#374151", lineHeight:1.7, margin:0, whiteSpace:"pre-wrap" }}>{item.description||item.content}</p>
+        </div>
+      )}
+
+      {/* File viewer */}
+      {viewingFile && (
+        <KbFileViewer file={viewingFile} activeSheet={activeSheet} onSheetChange={setActiveSheet} onClose={() => setViewingFile(null)} />
+      )}
+
+      {/* Files + Notes grid */}
+      {!viewingFile && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+          {/* Files */}
+          <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"13px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:10, textTransform:"uppercase", letterSpacing:0.5 }}>
+              📎 Files <span style={{ background:"#f1f5f9", borderRadius:8, padding:"1px 6px", marginLeft:4 }}>{item.files?.length||0}</span>
+            </div>
+            {!item.files?.length ? (
+              <div style={{ fontSize:12, color:"#94a3b8", textAlign:"center", padding:"14px 0" }}>No files yet.<br/><span style={{fontSize:11}}>Supports .xlsx, .xls, .csv, .docx, .txt</span></div>
+            ) : item.files.map(f => (
+              <div key={f.id} onClick={() => f.type !== "binary" && openFile(f)}
+                style={{ background:"#f8fafc", borderRadius:7, padding:"8px 11px", marginBottom:6, cursor: f.type!=="binary" ? "pointer" : "default",
+                  border:"1px solid #e2e8f0", transition:"border-color 0.15s" }}
+                onMouseEnter={e => f.type!=="binary" && (e.currentTarget.style.borderColor="#0d9488")}
+                onMouseLeave={e => e.currentTarget.style.borderColor="#e2e8f0"}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{fontSize:15}}>{f.type==="excel"?"📊":f.type==="word"?"📝":f.type==="text"?"📄":"📎"}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:12 }}>{f.name}</div>
+                    <div style={{ fontSize:10, color:"#94a3b8", marginTop:1 }}>
+                      {f.size}
+                      {f.type==="excel" && ` · ${f.rowCount} rows · ${f.sheetNames?.length} sheet(s)`}
+                      {f.type==="word" && ` · ${f.wordCount?.toLocaleString()} words`}
+                      {" · "}{f.date}
+                    </div>
+                  </div>
+                  {f.type !== "binary" && <span style={{ fontSize:11, color:"#0d9488", fontWeight:600 }}>View →</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Notes */}
+          <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"13px 16px" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:10, textTransform:"uppercase", letterSpacing:0.5 }}>
+              📝 Notes <span style={{ background:"#f1f5f9", borderRadius:8, padding:"1px 6px", marginLeft:4 }}>{item.notes?.length||0}</span>
+            </div>
+            <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+              <input value={noteInput} onChange={e=>setNoteInput(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && onAddNote()}
+                placeholder="Add a note… (Enter)" style={{ flex:1, border:"1px solid #e2e8f0", borderRadius:6, padding:"6px 9px", fontSize:12, outline:"none" }}/>
+              <button onClick={onAddNote} style={{ background:"#0d9488", border:"none", borderRadius:6, padding:"6px 11px", cursor:"pointer", color:"#fff", fontWeight:700 }}>+</button>
+            </div>
+            <div style={{ maxHeight:220, overflowY:"auto", display:"flex", flexDirection:"column", gap:6 }}>
+              {!item.notes?.length ? (
+                <div style={{ fontSize:12, color:"#94a3b8", textAlign:"center", padding:"10px 0" }}>No notes yet.</div>
+              ) : item.notes.map(n => (
+                <div key={n.id} style={{ background:"#fffbeb", border:"1px solid #fef3c7", borderRadius:7, padding:"7px 11px" }}>
+                  <div style={{ fontSize:12, color:"#374151" }}>{n.text}</div>
+                  <div style={{ fontSize:10, color:"#94a3b8", marginTop:3 }}>{n.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// MAIN APP
+// ══════════════════════════════════════════════
 function App() {
   const [tab, setTab]           = useState(0);
   const [emails, setEmails]     = useState(()=>load("emails", SAMPLE_EMAILS));
@@ -322,15 +454,25 @@ function App() {
   const [saved, setSaved]       = useState(false);
   const [liveStatus, setLiveStatus] = useState("idle");
   const knownIds = useRef(new Set(emails.map(e=>e.id)));
-  const [kbDocs, setKbDocs]         = useState(()=>load("kbDocs", []));
-  const [kbChat, setKbChat]         = useState([]);
-  const [kbInput, setKbInput]       = useState("");
-  const [kbLoading, setKbLoading]   = useState(false);
-  const [kbDocTitle, setKbDocTitle] = useState("");
-  const [kbDocBody, setKbDocBody]   = useState("");
-  const [kbDocCat, setKbDocCat]     = useState("Customer");
-  const [kbAddMode, setKbAddMode]   = useState(false);
-  const [kbSelDoc, setKbSelDoc]     = useState(null); // NEW: selected doc for detail view
+
+  // ── KB State ──
+  const [kbData, setKbData]       = useState(()=>load("kbDataV3", KB_INITIAL));
+  const [kbOpen, setKbOpen]       = useState({ projects:false, customers:false, industry:false, paycargo:false, paycargo_vendors:false, paycargo_payers:false });
+  const [kbSelected, setKbSelected] = useState(null); // { key, item }
+  const [kbModal, setKbModal]     = useState(null);   // { section, type, label }
+  const [kbForm, setKbForm]       = useState({ title:"", content:"", tag:"", name:"", description:"", category:"Vendor" });
+  const [kbSearch, setKbSearch]   = useState("");
+  const [kbNoteInput, setKbNoteInput] = useState("");
+  const [kbUploading, setKbUploading] = useState(false);
+  const [kbPendingSection, setKbPendingSection] = useState(null);
+  const kbFileRef = useRef();
+  const kbSectionFileRef = useRef();
+
+  // Legacy KB for AI chat
+  const [kbDocs, setKbDocs]       = useState(()=>load("kbDocs", []));
+  const [kbChat, setKbChat]       = useState([]);
+  const [kbInput, setKbInput]     = useState("");
+  const [kbLoading, setKbLoading] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -341,24 +483,14 @@ function App() {
         if (!res.ok) { setLiveStatus("idle"); return; }
         const data = await res.json();
         if (!data.success || !data.emails?.length) { setLiveStatus("idle"); return; }
-        const incoming = data.emails
-          .map(normalizeApiEmail)
-          .filter(e => !knownIds.current.has(e.id));
+        const incoming = data.emails.map(normalizeApiEmail).filter(e => !knownIds.current.has(e.id));
         if (incoming.length > 0) {
           incoming.forEach(e => knownIds.current.add(e.id));
-          setEmails(prev => {
-            const withoutSamples = prev.filter(e => !e.id.startsWith("s"));
-            const merged = [...incoming, ...withoutSamples];
-            return merged;
-          });
+          setEmails(prev => { const withoutSamples = prev.filter(e => !e.id.startsWith("s")); return [...incoming, ...withoutSamples]; });
           setLiveStatus("new");
           setTimeout(() => setLiveStatus("idle"), 4000);
-        } else {
-          setLiveStatus("idle");
-        }
-      } catch(e) {
-        setLiveStatus("idle");
-      }
+        } else { setLiveStatus("idle"); }
+      } catch(e) { setLiveStatus("idle"); }
     }
     fetchLive();
     const interval = setInterval(fetchLive, 60000);
@@ -371,6 +503,7 @@ function App() {
   useEffect(()=>{ save("actions",actions); },[actions]);
   useEffect(()=>{ save("sf",sfEvents); setSaved(true); setTimeout(()=>setSaved(false),1500); },[sfEvents]);
   useEffect(()=>{ save("kbDocs",kbDocs); },[kbDocs]);
+  useEffect(()=>{ save("kbDataV3",kbData); },[kbData]);
 
   function clearAll() {
     ["emails","amap","customers","actions","sf"].forEach(k=>{ try{localStorage.removeItem("aimc_"+k);}catch(e){} });
@@ -398,11 +531,7 @@ function App() {
       setAmap(prev=>({...prev,[email.id]:analysis}));
       setSelEmail({...email,analysis});
       if (analysis.customerProfile) {
-        setCust(prev=>{
-          const ex=prev.find(c=>c.email===analysis.customerProfile.email);
-          if(ex) return prev.map(c=>c.email===analysis.customerProfile.email?{...c,notes:analysis.customerProfile.notes,lastContact:email.date,emailCount:(c.emailCount||1)+1,sentiment:analysis.sentiment}:c);
-          return [...prev,{...analysis.customerProfile,id:Date.now(),lastContact:email.date,emailCount:1,sentiment:analysis.sentiment,customerType:analysis.customerType}];
-        });
+        setCust(prev=>{ const ex=prev.find(c=>c.email===analysis.customerProfile.email); if(ex) return prev.map(c=>c.email===analysis.customerProfile.email?{...c,notes:analysis.customerProfile.notes,lastContact:email.date,emailCount:(c.emailCount||1)+1,sentiment:analysis.sentiment}:c); return [...prev,{...analysis.customerProfile,id:Date.now(),lastContact:email.date,emailCount:1,sentiment:analysis.sentiment,customerType:analysis.customerType}]; });
       }
       if (analysis.actionItems?.length) setActs(prev=>[...prev,...analysis.actionItems.map(a=>({...a,id:Date.now()+Math.random(),emailSubject:email.subject,done:false}))]);
       if (analysis.salesforceEvents?.length) setSF(prev=>[...prev,...analysis.salesforceEvents.map(e=>({...e,id:Date.now()+Math.random(),emailSubject:email.subject}))]);
@@ -417,6 +546,78 @@ function App() {
     await analyze(e);
   }
 
+  // ── KB helpers ──
+  const kbPersist = (updated) => setKbData(updated);
+  const kbToggle = (key) => setKbOpen(p => ({...p, [key]:!p[key]}));
+  const kbCount = (key) => (kbData[key]||[]).length;
+
+  const kbAddEntry = (sectionKey) => {
+    if (!kbForm.title.trim()) return;
+    const entry = { id:Date.now(), title:kbForm.title, content:kbForm.content, tag:kbForm.tag, notes:[], files:[], date:new Date().toLocaleDateString() };
+    kbPersist({ ...kbData, [sectionKey]:[...(kbData[sectionKey]||[]), entry] });
+    setKbForm({ title:"", content:"", tag:"", name:"", description:"", category:"Vendor" });
+    setKbModal(null);
+  };
+
+  const kbAddProfile = () => {
+    if (!kbForm.name.trim()) return;
+    const p = { id:Date.now(), title:kbForm.name, name:kbForm.name, description:kbForm.description, category:kbForm.category, notes:[], files:[], date:new Date().toLocaleDateString() };
+    kbPersist({ ...kbData, customers:[...(kbData.customers||[]), p] });
+    setKbForm({ title:"", content:"", tag:"", name:"", description:"", category:"Vendor" });
+    setKbModal(null);
+  };
+
+  const kbDeleteEntry = (sectionKey, id) => {
+    kbPersist({ ...kbData, [sectionKey]: kbData[sectionKey].filter(e=>e.id!==id) });
+    if (kbSelected?.item?.id === id) setKbSelected(null);
+  };
+
+  const kbAddNote = () => {
+    if (!kbNoteInput.trim() || !kbSelected) return;
+    const note = { id:Date.now(), text:kbNoteInput, date:new Date().toLocaleDateString() };
+    const sk = kbSelected.key;
+    const updated = { ...kbData, [sk]: kbData[sk].map(e => e.id===kbSelected.item.id ? {...e, notes:[...(e.notes||[]),note]} : e) };
+    kbPersist(updated);
+    setKbSelected({ ...kbSelected, item: updated[sk].find(e=>e.id===kbSelected.item.id) });
+    setKbNoteInput("");
+  };
+
+  const kbHandleFileForEntry = async (e, sectionKey, itemId) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setKbUploading(true);
+    try {
+      const parsed = await parseFile(file);
+      const updated = { ...kbData, [sectionKey]: kbData[sectionKey].map(en => en.id===itemId ? {...en, files:[...(en.files||[]), parsed]} : en) };
+      kbPersist(updated);
+      setKbSelected({ key:sectionKey, item: updated[sectionKey].find(en=>en.id===itemId) });
+    } catch(err) { alert("Error parsing file: "+err.message); }
+    setKbUploading(false);
+    e.target.value = "";
+  };
+
+  const kbHandleFileForSection = async (e, sectionKey) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setKbUploading(true);
+    try {
+      const parsed = await parseFile(file);
+      const entry = { id:Date.now(), title:file.name, content:"", tag:file.ext?.toUpperCase()||"FILE", notes:[], files:[parsed], date:new Date().toLocaleDateString() };
+      const updated = { ...kbData, [sectionKey]:[...(kbData[sectionKey]||[]), entry] };
+      kbPersist(updated);
+      setKbSelected({ key:sectionKey, item:entry });
+    } catch(err) { alert("Error parsing file: "+err.message); }
+    setKbUploading(false);
+    e.target.value = "";
+  };
+
+  const kbGetFiltered = (key) => {
+    const items = kbData[key]||[];
+    if (!kbSearch) return items;
+    const q = kbSearch.toLowerCase();
+    return items.filter(i => (i.title||i.name||"").toLowerCase().includes(q) || (i.content||i.description||"").toLowerCase().includes(q));
+  };
+
   const uOrder={urgent:0,high:1,medium:2,low:3};
   const fActions=actions.filter(a=>actFilter==="done"?a.done:actFilter==="pending"?!a.done:true).sort((a,b)=>(uOrder[a.urgency]??3)-(uOrder[b.urgency]??3));
   const fSF=sfEvents.filter(e=>sfFilter==="all"||e.type===sfFilter);
@@ -428,20 +629,10 @@ function App() {
   const sectionLabel={fontSize:10,fontWeight:700,color:"#0d7a6b",textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8};
 
   const LiveDot = () => {
-    if (liveStatus === "new") return <span style={{fontSize:11,color:"#0a9e6b",fontWeight:700,fontFamily:"'DM Mono',monospace",animation:"pulse 1s ease infinite"}}>● New email!</span>;
-    if (liveStatus === "checking") return <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace"}}><span style={{display:"inline-block",width:8,height:8,border:"1.5px solid #8a9ab0",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite",marginRight:4}}/>checking…</span>;
+    if (liveStatus==="new") return <span style={{fontSize:11,color:"#0a9e6b",fontWeight:700,fontFamily:"'DM Mono',monospace",animation:"pulse 1s ease infinite"}}>● New email!</span>;
+    if (liveStatus==="checking") return <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace"}}><span style={{display:"inline-block",width:8,height:8,border:"1.5px solid #8a9ab0",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite",marginRight:4}}/>checking…</span>;
     return <span style={{fontSize:11,color:"#b0bcc8",fontFamily:"'DM Mono',monospace"}}>● live</span>;
   };
-
-  // KB helpers
-  function handleKbSave(updatedDoc) {
-    setKbDocs(prev=>prev.map(d=>d.id===updatedDoc.id ? updatedDoc : d));
-    setKbSelDoc(updatedDoc);
-  }
-  function handleKbDelete(id) {
-    setKbDocs(prev=>prev.filter(d=>d.id!==id));
-    setKbSelDoc(null);
-  }
 
   return (
     <div style={{fontFamily:"'DM Sans','Segoe UI',sans-serif",background:"#f0f4f8",minHeight:"100vh",color:"#1a2540"}}>
@@ -516,7 +707,6 @@ function App() {
                 })}
               </div>
             </div>
-
             <div style={panel}>
               {!selEmail && <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:"#b0bcc8",gap:10,paddingTop:80}}><div style={{fontSize:48}}>📬</div><div style={{fontSize:14,fontWeight:500}}>Select an email to analyze</div><div style={{fontSize:12}}>Generates summaries, drafts, actions & Salesforce events</div></div>}
               {selEmail?.loading && <div style={{padding:20}}><div style={{fontSize:14,fontWeight:600,marginBottom:20}}>{selEmail.subject}</div><div style={{display:"flex",alignItems:"center",gap:8,color:"#0d7a6b",fontSize:13}}><div style={{width:14,height:14,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Claude is thinking…</div></div>}
@@ -686,166 +876,186 @@ function App() {
 
         {/* ── KNOWLEDGE BASE ── */}
         {tab===4 && (
-          <div style={{display:"grid",gridTemplateColumns:kbSelDoc?"300px 1fr":"300px 1fr",gap:16,minHeight:"75vh"}}>
-            {/* LEFT: Doc list + add */}
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <span style={{fontSize:11,color:"#8a9ab0",fontFamily:"'DM Mono',monospace",textTransform:"uppercase",letterSpacing:"0.08em"}}>Knowledge Base · {kbDocs.length} docs</span>
-                <button onClick={()=>{ setKbAddMode(v=>!v); setKbSelDoc(null); }} style={{fontSize:11,background:"#f0faf6",border:"1px solid #0d7a6b",color:"#0d7a6b",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>+ Add</button>
-              </div>
-              {kbAddMode && (
-                <div style={{background:"#fff",border:"1px solid #0d7a6b",borderRadius:12,padding:14,marginBottom:12}} className="fadein">
-                  <div style={{fontSize:11,fontWeight:700,color:"#0d7a6b",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.08em"}}>Add Knowledge</div>
-                  <select value={kbDocCat} onChange={e=>setKbDocCat(e.target.value)} style={{width:"100%",background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:6,padding:"7px 10px",color:"#1a2540",fontSize:12,marginBottom:6,fontFamily:"inherit"}}>
-                    <option>Customer</option>
-                    <option>Pricing</option>
-                    <option>Vendor</option>
-                    <option>Project</option>
-                    <option>Process</option>
-                    <option>Other</option>
-                  </select>
-                  <input value={kbDocTitle} onChange={e=>setKbDocTitle(e.target.value)} placeholder="Title (e.g. Acme Corp pricing)" style={{width:"100%",background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:6,padding:"7px 10px",color:"#1a2540",fontSize:12,marginBottom:6,fontFamily:"inherit"}}/>
-                  <textarea value={kbDocBody} onChange={e=>setKbDocBody(e.target.value)} placeholder="Paste your data here — customer notes, pricing tables, vendor lists, project details..." rows={6} style={{width:"100%",background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:6,padding:"7px 10px",color:"#1a2540",fontSize:12,resize:"vertical",marginBottom:8,fontFamily:"inherit"}}/>
-                  <div style={{display:"flex",gap:6}}>
-                    <button onClick={()=>{
-                      if(!kbDocTitle.trim()||!kbDocBody.trim()) return;
-                      setKbDocs(prev=>[{id:Date.now(),title:kbDocTitle,body:kbDocBody,category:kbDocCat,date:new Date().toLocaleDateString(),notes:"",items:[]},...prev]);
-                      setKbDocTitle(""); setKbDocBody(""); setKbAddMode(false);
-                    }} style={{flex:1,background:"#0d7a6b",border:"none",color:"white",borderRadius:6,padding:"8px",cursor:"pointer",fontWeight:700,fontSize:12,fontFamily:"inherit"}}>Save to Knowledge Base</button>
-                    <button onClick={()=>setKbAddMode(false)} style={{background:"transparent",border:"1px solid #c0ccd8",color:"#7a8a9a",borderRadius:6,padding:"8px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Cancel</button>
-                  </div>
+          <div style={{display:"grid", gridTemplateColumns:"270px 1fr", gap:16, minHeight:"75vh"}}>
+
+            {/* Hidden file inputs */}
+            <input type="file" ref={kbFileRef} style={{display:"none"}} accept=".xlsx,.xls,.csv,.docx,.txt,.md,.pdf,.pptx"
+              onChange={e => kbSelected && kbHandleFileForEntry(e, kbSelected.key, kbSelected.item.id)} />
+            <input type="file" ref={kbSectionFileRef} style={{display:"none"}} accept=".xlsx,.xls,.csv,.docx,.txt,.md,.pdf,.pptx"
+              onChange={e => kbPendingSection && kbHandleFileForSection(e, kbPendingSection)} />
+
+            {/* ── LEFT SIDEBAR ── */}
+            <div style={{background:"#fff", border:"1px solid #dde4ec", borderRadius:12, display:"flex", flexDirection:"column", overflow:"hidden"}}>
+              <div style={{padding:"13px 13px 9px", borderBottom:"1px solid #eef2f7"}}>
+                <div style={{fontWeight:700, fontSize:13, color:"#0f172a", marginBottom:8, display:"flex", alignItems:"center", gap:6}}>
+                  <span>🧠</span> Knowledge Base
                 </div>
-              )}
-              {kbDocs.length===0 && !kbAddMode && <div style={{textAlign:"center",padding:40,color:"#b0bcc8"}}><div style={{fontSize:36,marginBottom:8}}>🧠</div><div style={{fontSize:13,fontWeight:500,marginBottom:4}}>No knowledge yet</div><div style={{fontSize:11}}>Add customers, pricing, vendors, projects</div></div>}
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {kbDocs.map(doc=>{
-                  const catColor={Customer:"#2471a3",Pricing:"#1e8449",Vendor:"#7d3c98",Project:"#d68910",Process:"#c0392b",Other:"#5a7090"};
-                  const isSelected = kbSelDoc?.id === doc.id;
-                  const hasNotes = doc.notes && doc.notes.trim().length > 0;
-                  const hasItems = doc.items && doc.items.length > 0;
-                  return <div
-                    key={doc.id}
-                    className="kb-card"
-                    onClick={()=>{ setKbSelDoc(isSelected ? null : doc); setKbAddMode(false); }}
-                    style={{background:isSelected?"#f0faf6":"#fff",border:"1px solid "+(isSelected?"#0d7a6b":"#dde4ec"),borderRadius:10,padding:"12px 14px",boxShadow:"0 1px 3px rgba(0,0,0,0.04)",transition:"all 0.15s",position:"relative"}}
-                  >
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-                      <span style={{fontWeight:600,fontSize:13,flex:1,marginRight:8,color:isSelected?"#0d7a6b":"#1a2540"}}>{doc.title}</span>
-                      <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                        {(hasNotes||hasItems) && <span style={{fontSize:9,padding:"1px 5px",borderRadius:4,background:"#f0faf6",color:"#0d7a6b",border:"1px solid #b0ddd0",fontWeight:700}}>+notes</span>}
+                <input value={kbSearch} onChange={e=>setKbSearch(e.target.value)} placeholder="Search all sections…"
+                  style={{width:"100%", border:"1px solid #e2e8f0", borderRadius:6, padding:"5px 9px", fontSize:12, outline:"none", background:"#f8fafc", boxSizing:"border-box"}}/>
+              </div>
+
+              <div style={{flex:1, overflowY:"auto"}}>
+                {KB_SECTIONS.map(sec => (
+                  <div key={sec.key}>
+                    {/* Section toggle */}
+                    <button onClick={() => kbToggle(sec.key)}
+                      style={{width:"100%", background:"none", border:"none", borderBottom:"1px solid #f1f5f9", padding:"9px 11px", cursor:"pointer", display:"flex", alignItems:"center", gap:6, textAlign:"left"}}>
+                      <span style={{fontSize:10, color:"#94a3b8", display:"inline-block", transform: kbOpen[sec.key]?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.15s"}}>▶</span>
+                      <span style={{fontSize:14}}>{sec.icon}</span>
+                      <span style={{flex:1, fontWeight:600, fontSize:12, color:"#1e293b"}}>{sec.label}</span>
+                      <span style={{fontSize:10, background:sec.bg, color:sec.color, borderRadius:9, padding:"1px 6px", fontWeight:700}}>
+                        {sec.children ? sec.children.reduce((a,c)=>a+kbCount(c.key),0) : kbCount(sec.key)}
+                      </span>
+                    </button>
+
+                    {kbOpen[sec.key] && (
+                      <div style={{background:"#fafafa"}}>
+                        {sec.children ? (
+                          sec.children.map(child => (
+                            <div key={child.key}>
+                              <button onClick={() => kbToggle(child.key)}
+                                style={{width:"100%", background:"none", border:"none", borderBottom:"1px solid #f1f5f9", padding:"7px 11px 7px 26px", cursor:"pointer", display:"flex", alignItems:"center", gap:5, textAlign:"left"}}>
+                                <span style={{fontSize:9, color:"#94a3b8", display:"inline-block", transform: kbOpen[child.key]?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.15s"}}>▶</span>
+                                <span style={{fontSize:13}}>{child.icon}</span>
+                                <span style={{flex:1, fontWeight:600, fontSize:12, color:"#374151"}}>{child.label}</span>
+                                <span style={{fontSize:10, background:child.bg, color:child.color, borderRadius:8, padding:"1px 5px", fontWeight:700}}>{kbCount(child.key)}</span>
+                              </button>
+                              {kbOpen[child.key] && (
+                                <KbSectionItems items={kbGetFiltered(child.key)} sectionKey={child.key} color={child.color} selected={kbSelected}
+                                  onSelect={item => { setKbSelected({key:child.key, item}); }}
+                                  onAdd={() => setKbModal({section:child.key, type:"entry", label:child.label})}
+                                  onUpload={sk => { setKbPendingSection(sk); kbSectionFileRef.current.click(); }}
+                                  indent={40} />
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <KbSectionItems items={kbGetFiltered(sec.key)} sectionKey={sec.key} color={sec.color} selected={kbSelected}
+                            onSelect={item => { setKbSelected({key:sec.key, item}); }}
+                            onAdd={() => setKbModal({section:sec.key, type: sec.isProfiles?"profile":"entry", label:sec.label})}
+                            onUpload={sk => { setKbPendingSection(sk); kbSectionFileRef.current.click(); }}
+                            indent={24} />
+                        )}
                       </div>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontSize:10,padding:"2px 7px",borderRadius:4,background:"#f0f4f8",color:catColor[doc.category]||"#5a7090",border:"1px solid #e0e8f0",fontWeight:700}}>{doc.category}</span>
-                      <span style={{fontSize:10,color:"#b0bcc8"}}>{doc.date}</span>
-                    </div>
-                    {hasItems && <div style={{marginTop:6,fontSize:10,color:"#8a9ab0"}}>{doc.items.filter(i=>!i.done).length} action{doc.items.filter(i=>!i.done).length!==1?"s":""} pending</div>}
-                    {isSelected && <div style={{position:"absolute",right:-8,top:"50%",transform:"translateY(-50%)",width:0,height:0,borderTop:"8px solid transparent",borderBottom:"8px solid transparent",borderLeft:"8px solid #0d7a6b"}}/>}
-                  </div>;
-                })}
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* RIGHT: Detail panel OR AI Chat */}
-            {kbSelDoc ? (
-              <KbDetailPanel
-                doc={kbSelDoc}
-                onClose={()=>setKbSelDoc(null)}
-                onSave={handleKbSave}
-                onDelete={handleKbDelete}
-              />
-            ) : (
-              <div style={{background:"#fff",border:"1px solid #dde4ec",borderRadius:12,display:"flex",flexDirection:"column",boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
-                <div style={{padding:"16px 20px",borderBottom:"1px solid #eef2f7"}}>
-                  <div style={{fontSize:15,fontWeight:700,marginBottom:2}}>🧠 AI Assistant</div>
-                  <div style={{fontSize:11,color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects · or click any doc to view & edit it</div>
+            {/* ── RIGHT PANEL ── */}
+            <div style={{background:"#fff", border:"1px solid #dde4ec", borderRadius:12, display:"flex", flexDirection:"column", overflow:"hidden"}}>
+              {kbUploading ? (
+                <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flex:1, gap:10}}>
+                  <div style={{fontSize:32}}>⏳</div>
+                  <div style={{fontWeight:600, color:"#0d9488", fontSize:14}}>Parsing file…</div>
+                  <div style={{fontSize:12, color:"#64748b"}}>Extracting content from your document</div>
                 </div>
-                <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:12,minHeight:300}}>
-                  {kbChat.length===0 && <div style={{textAlign:"center",paddingTop:60,color:"#b0bcc8"}}>
-                    <div style={{fontSize:36,marginBottom:12}}>💬</div>
-                    <div style={{fontSize:13,fontWeight:500,marginBottom:8}}>Ask me anything</div>
-                    <div style={{fontSize:11,lineHeight:1.8,color:"#c0ccd8"}}>
-                      "What's the pricing for Acme Corp?"<br/>
-                      "Which vendors does my customer use?"<br/>
-                      "What's the status of the Miami project?"<br/>
-                      "Summarize my notes on this customer"
-                    </div>
-                    {kbDocs.length > 0 && <div style={{marginTop:20,fontSize:11,color:"#a0b0c0"}}>← Click any doc to view details &amp; add notes</div>}
-                  </div>}
-                  {kbChat.map((msg,i)=>(
-                    <div key={i} style={{display:"flex",flexDirection:msg.role==="user"?"row-reverse":"row",gap:10,alignItems:"flex-start"}}>
-                      <div style={{width:28,height:28,borderRadius:"50%",background:msg.role==="user"?"#0d7a6b":"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white",flexShrink:0}}>{msg.role==="user"?"You":"AI"}</div>
-                      <div style={{background:msg.role==="user"?"#f0faf6":"#f8fafc",border:"1px solid",borderColor:msg.role==="user"?"#b0ddd0":"#e0e8f0",borderRadius:10,padding:"10px 14px",maxWidth:"80%",fontSize:13,color:"#2a3a50",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{msg.content}</div>
-                    </div>
-                  ))}
-                  {kbLoading && <div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{width:28,height:28,borderRadius:"50%",background:"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"white"}}>AI</div><div style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:10,padding:"10px 14px",fontSize:13,color:"#8a9ab0",display:"flex",gap:6,alignItems:"center"}}><div style={{width:10,height:10,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Thinking…</div></div>}
-                  <div ref={chatEndRef}/>
-                </div>
-                <div style={{padding:"12px 16px",borderTop:"1px solid #eef2f7",display:"flex",gap:8}}>
-                  <textarea
-                    value={kbInput}
-                    onChange={e=>setKbInput(e.target.value)}
-                    onKeyDown={async e=>{
-                      if(e.key==="Enter"&&!e.shiftKey){
-                        e.preventDefault();
-                        if(!kbInput.trim()||kbLoading) return;
-                        const question = kbInput.trim();
-                        setKbInput("");
-                        setKbChat(prev=>[...prev,{role:"user",content:question}]);
-                        setKbLoading(true);
-                        try {
-                          const kbContext = kbDocs.length>0
-                            ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}${d.notes?"\n\nAdditional Notes:\n"+d.notes:""}${d.items?.length?"\n\nAction Items:\n"+d.items.map(i=>"- ["+(i.done?"done":"pending")+"] "+i.text).join("\n"):""}`).join("\n\n---\n\n")
-                            : "No knowledge base documents have been added yet.";
-                          const res = await fetch("/api/analyze",{
-                            method:"POST",headers:{"Content-Type":"application/json"},
-                            body:JSON.stringify({
-                              model:"claude-sonnet-4-20250514",max_tokens:1000,
-                              system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
-                              messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
-                            })
-                          });
-                          const data = await res.json();
-                          const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
-                          setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                        } catch(err) {
-                          setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
+              ) : kbSelected ? (
+                <KbDetailPanel
+                  selected={kbSelected}
+                  noteInput={kbNoteInput}
+                  setNoteInput={setKbNoteInput}
+                  onAddNote={kbAddNote}
+                  onDelete={(id) => kbDeleteEntry(kbSelected.key, id)}
+                  onUploadFile={() => kbFileRef.current.click()}
+                />
+              ) : (
+                /* AI Chat */
+                <div style={{display:"flex", flexDirection:"column", height:"100%"}}>
+                  <div style={{padding:"14px 18px", borderBottom:"1px solid #eef2f7"}}>
+                    <div style={{fontSize:14, fontWeight:700, marginBottom:2}}>🧠 AI Assistant</div>
+                    <div style={{fontSize:11, color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects · or click any doc to view & edit it</div>
+                  </div>
+                  <div style={{flex:1, overflowY:"auto", padding:"14px 18px", display:"flex", flexDirection:"column", gap:12}}>
+                    {kbChat.length===0 && (
+                      <div style={{textAlign:"center", paddingTop:50, color:"#b0bcc8"}}>
+                        <div style={{fontSize:36, marginBottom:10}}>💬</div>
+                        <div style={{fontSize:13, fontWeight:500, marginBottom:8}}>Ask me anything</div>
+                        <div style={{fontSize:11, lineHeight:1.8, color:"#c0ccd8"}}>
+                          "What's the pricing for Acme Corp?"<br/>
+                          "Which vendors does my customer use?"<br/>
+                          "What's the status of the Miami project?"<br/>
+                          "Summarize my notes on this customer"
+                        </div>
+                        <div style={{marginTop:16, fontSize:11, color:"#a0b0c0"}}>← Expand a section on the left to browse or add entries</div>
+                      </div>
+                    )}
+                    {kbChat.map((msg,i)=>(
+                      <div key={i} style={{display:"flex", flexDirection:msg.role==="user"?"row-reverse":"row", gap:8, alignItems:"flex-start"}}>
+                        <div style={{width:26, height:26, borderRadius:"50%", background:msg.role==="user"?"#0d7a6b":"linear-gradient(135deg,#0d7a6b,#0a5a8a)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"white", flexShrink:0}}>{msg.role==="user"?"You":"AI"}</div>
+                        <div style={{background:msg.role==="user"?"#f0faf6":"#f8fafc", border:"1px solid", borderColor:msg.role==="user"?"#b0ddd0":"#e0e8f0", borderRadius:9, padding:"9px 12px", maxWidth:"80%", fontSize:13, color:"#2a3a50", lineHeight:1.7, whiteSpace:"pre-wrap"}}>{msg.content}</div>
+                      </div>
+                    ))}
+                    {kbLoading && <div style={{display:"flex",gap:8,alignItems:"center"}}><div style={{width:26,height:26,borderRadius:"50%",background:"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"white"}}>AI</div><div style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:9,padding:"9px 12px",fontSize:12,color:"#8a9ab0",display:"flex",gap:6,alignItems:"center"}}><div style={{width:9,height:9,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Thinking…</div></div>}
+                    <div ref={chatEndRef}/>
+                  </div>
+                  <div style={{padding:"10px 14px", borderTop:"1px solid #eef2f7", display:"flex", gap:8}}>
+                    <textarea value={kbInput} onChange={e=>setKbInput(e.target.value)}
+                      onKeyDown={async e=>{
+                        if(e.key==="Enter"&&!e.shiftKey){
+                          e.preventDefault();
+                          if(!kbInput.trim()||kbLoading) return;
+                          const question = kbInput.trim();
+                          setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
+                          try {
+                            const allDocs = [...kbDocs];
+                            KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
+                            const kbContext = allDocs.length>0 ? "KNOWLEDGE BASE:\n\n" + allDocs.map(d=>`[${d.category||d.tag}] ${d.title||d.name}:\n${d.body||d.content||d.description||""}${d.notes?.length?"\n\nNotes:\n"+d.notes.map(n=>n.text||n).join("\n"):""}`).join("\n\n---\n\n") : "No knowledge base documents yet.";
+                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. Answer questions based on the knowledge base. If not in KB, say so and offer general help.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                            const data = await res.json();
+                            const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
+                            setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
+                          } catch(err) { setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]); }
+                          setKbLoading(false);
+                          setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
                         }
-                        setKbLoading(false);
-                        setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
-                      }
-                    }}
-                    placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send)"
-                    rows={2}
-                    style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:8,padding:"10px 12px",color:"#1a2540",fontSize:13,resize:"none",fontFamily:"inherit"}}
-                  />
-                  <button onClick={async()=>{
-                    if(!kbInput.trim()||kbLoading) return;
-                    const question = kbInput.trim();
-                    setKbInput("");
-                    setKbChat(prev=>[...prev,{role:"user",content:question}]);
-                    setKbLoading(true);
-                    try {
-                      const kbContext = kbDocs.length>0
-                        ? "KNOWLEDGE BASE:\n\n" + kbDocs.map(d=>`[${d.category}] ${d.title}:\n${d.body}${d.notes?"\n\nAdditional Notes:\n"+d.notes:""}${d.items?.length?"\n\nAction Items:\n"+d.items.map(i=>"- ["+(i.done?"done":"pending")+"] "+i.text).join("\n"):""}`).join("\n\n---\n\n")
-                        : "No knowledge base documents have been added yet.";
-                      const res = await fetch("/api/analyze",{
-                        method:"POST",headers:{"Content-Type":"application/json"},
-                        body:JSON.stringify({
-                          model:"claude-sonnet-4-20250514",max_tokens:1000,
-                          system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base containing customer info, pricing, vendors, projects and more. Answer questions clearly and concisely based on the knowledge base. If the answer isn't in the knowledge base, say so and offer general help.\n\n${kbContext}`,
-                          messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]
-                        })
-                      });
-                      const data = await res.json();
-                      const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, I couldn't get a response.";
-                      setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                    } catch(err) {
-                      setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]);
-                    }
-                    setKbLoading(false);
-                    setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
-                  }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:8,padding:"0 18px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
+                      }}
+                      placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send)"
+                      rows={2} style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:7,padding:"8px 10px",color:"#1a2540",fontSize:13,resize:"none",fontFamily:"inherit"}}/>
+                    <button onClick={async()=>{
+                      if(!kbInput.trim()||kbLoading) return;
+                      const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
+                      try {
+                        const allDocs=[...kbDocs]; KB_KEYS.forEach(k=>{(kbData[k]||[]).forEach(d=>{allDocs.push({...d,category:k});});});
+                        const kbContext=allDocs.length>0?"KNOWLEDGE BASE:\n\n"+allDocs.map(d=>`[${d.category||d.tag}] ${d.title||d.name}:\n${d.body||d.content||d.description||""}${d.notes?.length?"\n\nNotes:\n"+d.notes.map(n=>n.text||n).join("\n"):""}`).join("\n\n---\n\n"):"No knowledge base documents yet.";
+                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. Answer questions based on the knowledge base.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
+                        const data=await res.json();
+                        setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
+                      } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error. Please try again."}]);}
+                      setKbLoading(false); setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+                    }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:7,padding:"0 16px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── ADD MODAL ── */}
+            {kbModal && (
+              <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.35)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100}}>
+                <div style={{background:"#fff",borderRadius:14,padding:24,width:420,boxShadow:"0 20px 60px rgba(0,0,0,0.18)"}}>
+                  <h2 style={{fontSize:14,fontWeight:700,marginBottom:16,color:"#0f172a"}}>
+                    {kbModal.type==="profile" ? "🏭 New Company Profile" : `➕ Add to ${kbModal.label}`}
+                  </h2>
+                  {kbModal.type==="profile" ? (
+                    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                      <input value={kbForm.name} onChange={e=>setKbForm({...kbForm,name:e.target.value})} placeholder="Company name (e.g. UPS, DHL, DP World) *" style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+                      <select value={kbForm.category} onChange={e=>setKbForm({...kbForm,category:e.target.value})} style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",background:"#fff"}}>
+                        {PROFILE_TAGS.map(t=><option key={t}>{t}</option>)}
+                      </select>
+                      <textarea value={kbForm.description} onChange={e=>setKbForm({...kbForm,description:e.target.value})} placeholder="Description / overview…" rows={3} style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+                      <input value={kbForm.title} onChange={e=>setKbForm({...kbForm,title:e.target.value})} placeholder="Title *" style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+                      <input value={kbForm.tag} onChange={e=>setKbForm({...kbForm,tag:e.target.value})} placeholder="Tag (e.g. Active, Pricing, Strategy)" style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"}}/>
+                      <textarea value={kbForm.content} onChange={e=>setKbForm({...kbForm,content:e.target.value})} placeholder="Content / notes…" rows={4} style={{border:"1px solid #cbd5e1",borderRadius:7,padding:"8px 11px",fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:8,marginTop:16}}>
+                    <button onClick={()=>kbModal.type==="profile"?kbAddProfile():kbAddEntry(kbModal.section)} style={{background:"#0d7a6b",color:"#fff",border:"none",borderRadius:7,padding:"9px 18px",cursor:"pointer",fontWeight:700,fontSize:13}}>Save</button>
+                    <button onClick={()=>setKbModal(null)} style={{background:"#f1f5f9",color:"#374151",border:"1px solid #e2e8f0",borderRadius:7,padding:"9px 16px",cursor:"pointer",fontSize:13}}>Cancel</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -859,3 +1069,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
+
