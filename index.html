@@ -323,17 +323,22 @@ function fileToText(f, maxRows=150, searchTerms=[], sectionLabel="") {
   const isPayerFile  = sectionLabel.toLowerCase().includes("payer file");
   const isVendorFile = sectionLabel.toLowerCase().includes("vendor file");
 
+  // Character budget: use up to 45,000 chars for a single file's data so the AI
+  // gets as many rows as possible from a large file (7000+ rows) without blowing context.
+  const CHAR_BUDGET = 45000;
+
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
     const header = sheet[0] || [];
     const dataRows = sheet.slice(1);
 
+    const rowToLine = (row) => row.map(c => String(c ?? "")).join("\t");
+
     if (searchTerms.length > 0) {
       const termsLC = searchTerms.map(t => t.toLowerCase());
       const matchesAny = (val) => termsLC.some(t => String(val ?? "").toLowerCase().includes(t));
 
-      // Build a column legend so the AI knows what each column means for THIS file
       const colLegend = isPayerFile
         ? "Columns: [0]=Payer Group | [1]=Payer Branch | [2]=Vendor paid | [3+]=Monthly transactions\n"
         : isVendorFile
@@ -343,43 +348,59 @@ function fileToText(f, maxRows=150, searchTerms=[], sectionLabel="") {
       let matches = [];
 
       if (isPayerFile || isVendorFile) {
-        // ── PRIORITY SEARCH: Column 0 = Payer Group, Column 1 = Branch/Payer Name ──
-        // First try to find rows where the search term appears in col 0 or col 1 only.
-        // This prevents "Accelerated Inc" (a vendor in col 2) from hijacking a search
-        // for "Accelerated Global Solutions" (a payer in col 0).
+        // Search col 0/1 first (payer group / branch) to avoid col 2 vendor name contamination
         const col01Matches = dataRows.filter(row =>
           matchesAny(row[0]) || matchesAny(row[1])
         );
-
-        if (col01Matches.length > 0) {
-          // Good — found the payer/branch directly. Use only these rows.
-          matches = col01Matches;
-        } else {
-          // No col 0/1 match — fall back to searching all columns
-          matches = dataRows.filter(row => row.some(c => matchesAny(c)));
-        }
+        matches = col01Matches.length > 0
+          ? col01Matches
+          : dataRows.filter(row => row.some(c => matchesAny(c)));
       } else {
-        // Non-payer/vendor files: search all columns as before
         matches = dataRows.filter(row => row.some(c => matchesAny(c)));
       }
 
       if (matches.length > 0) {
-        const resultRows = matches.slice(0, 200);
-        const headerLine = header.map(c => String(c ?? "")).join("\t");
-        const matchLines = resultRows.map(row => row.map(c => String(c ?? "")).join("\t"));
-        const note = matches.length > 200
-          ? `\n(showing 200 of ${matches.length} matching rows out of ${dataRows.length} total)`
-          : `\n(${matches.length} matching rows out of ${dataRows.length} total)`;
-        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}Filtered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
+        const headerLine = rowToLine(header);
+        // Fill rows up to character budget instead of a fixed row cap
+        let usedChars = headerLine.length + colLegend.length + 200; // overhead
+        const includedLines = [];
+        for (const row of matches) {
+          const line = rowToLine(row);
+          if (usedChars + line.length > CHAR_BUDGET) break;
+          includedLines.push(line);
+          usedChars += line.length + 1;
+        }
+        const truncated = includedLines.length < matches.length;
+        const note = truncated
+          ? `\n(showing ${includedLines.length} of ${matches.length} matching rows — ${matches.length - includedLines.length} more exist; ask about a specific branch for full detail)`
+          : `\n(all ${matches.length} matching rows shown out of ${dataRows.length} total)`;
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}Filtered for: ${searchTerms.join(", ")}\n${headerLine}\n${includedLines.join("\n")}${note}`;
       } else {
-        const fallback = sheet.slice(0, maxRows+1).map(row => row.map(c => String(c ?? "")).join("\t"));
-        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}No rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
+        // No matches — show as many rows as fit in budget
+        const headerLine = rowToLine(header);
+        let usedChars = headerLine.length + 200;
+        const fallbackLines = [headerLine];
+        for (const row of dataRows.slice(0, 300)) {
+          const line = rowToLine(row);
+          if (usedChars + line.length > CHAR_BUDGET) break;
+          fallbackLines.push(line);
+          usedChars += line.length + 1;
+        }
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}No rows matched "${searchTerms.join(", ")}" — showing first ${fallbackLines.length - 1} rows:\n${fallbackLines.join("\n")}`;
       }
     }
 
-    const rows = sheet.slice(0, maxRows+1);
-    const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
-    const extra = sheet.length > maxRows+1 ? `\n(${sheet.length - maxRows - 1} more rows not shown)` : "";
+    // No search terms — show as many rows as fit in budget
+    const headerLine = rowToLine(header);
+    let usedChars = headerLine.length + 200;
+    const lines = [headerLine];
+    for (const row of dataRows.slice(0, 500)) {
+      const line = rowToLine(row);
+      if (usedChars + line.length > CHAR_BUDGET) break;
+      lines.push(line);
+      usedChars += line.length + 1;
+    }
+    const extra = lines.length - 1 < dataRows.length ? `\n(${dataRows.length - (lines.length - 1)} more rows not shown — search by company name to filter)` : "";
     return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
 
@@ -470,24 +491,6 @@ function buildKbContext(kbData, kbDocs, question="") {
   const searchTerms = question ? extractSearchTerms(question) : [];
   const qLower = (question||"").toLowerCase();
 
-  // ── Detect whether user is asking specifically about payers, vendors, or both ──
-  // If they say "payer file", "under payer", "payers tab" etc → only include payer docs
-  // If they say "vendor file", "under vendor" etc → only include vendor docs
-  // Otherwise include everything
-  const wantsPayers  = /\bpayer(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
-  const wantsVendors = /\bvendor(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
-  // Only filter if user explicitly names ONE side; if both or neither, include all
-  const sectionFilter = (wantsPayers && !wantsVendors) ? "paycargo_payers"
-                      : (!wantsPayers && wantsVendors) ? "paycargo_vendors"
-                      : null;
-
-  // Also detect a specific file name mentioned in the question (e.g. "Payer Data 07-1-2025")
-  const namedFile = question ? (question.match(/named[:\s]+([^,\n]+)/i)?.[1]?.trim().toLowerCase() || null) : null;
-
-  const allDocs = [...(kbDocs||[])];
-  KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
-  if (!allDocs.length) return "No knowledge base documents yet.";
-
   const SECTION_LABELS = {
     paycargo_payers:  "PAYER FILE — these companies MAKE payments (your customers paying vendors)",
     paycargo_vendors: "VENDOR FILE — these companies RECEIVE payments (being paid by payers)",
@@ -496,43 +499,92 @@ function buildKbContext(kbData, kbDocs, question="") {
     industry:         "INDUSTRY KNOWLEDGE",
   };
 
+  // ── Detect section intent ──
+  const wantsPayers  = /\bpayer(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
+  const wantsVendors = /\bvendor(s|\s+file|\s+tab|\s+data|\s+excel)?\b/.test(qLower);
+  const sectionFilter = (wantsPayers && !wantsVendors) ? "paycargo_payers"
+                      : (!wantsPayers && wantsVendors) ? "paycargo_vendors"
+                      : null;
+
+  // ── Detect named file — supports "named: X", "named X", "file named X", "file: X" ──
+  const namedFileRaw = question
+    ? (question.match(/(?:file\s+)?named[:\s]+([^\n,]+)/i)?.[1]?.trim() || null)
+    : null;
+  const namedFileLower = namedFileRaw?.toLowerCase() || null;
+
+  // ── Build flat doc list ──
+  const allDocs = [...(kbDocs||[])];
+  KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
+  if (!allDocs.length) return "No knowledge base documents yet.";
+
+  // ── Score docs ──
   const scored = allDocs.map(d => {
     const cat = d.category || d.tag || "KB";
 
-    // If user specified a section, exclude docs from the other PayCargo section entirely
+    // Exclude the opposite PayCargo section when user specifies one
     if (sectionFilter && (cat === "paycargo_payers" || cat === "paycargo_vendors") && cat !== sectionFilter) {
-      return null; // will be filtered out
+      return null;
     }
 
     const hf = (d.files||[]).map(hydrateFile);
 
-    // If user named a specific file, boost that file's entry to top priority
-    const namedMatch = namedFile && (
-      (d.title||d.name||"").toLowerCase().includes(namedFile) ||
-      hf.some(f => f.name?.toLowerCase().includes(namedFile))
+    // Check if this doc matches the named file
+    const namedMatch = namedFileLower && (
+      (d.title||d.name||"").toLowerCase().includes(namedFileLower) ||
+      hf.some(f => (f.name||"").toLowerCase().includes(namedFileLower))
     );
 
     const hasMatchingFile = searchTerms.length > 0 && hf.some(f => {
       if (f.type !== "excel") return false;
       const sheet = f.sheets?.[f.sheetNames?.[0]] || [];
-      return sheet.some(row => row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase()))));
+      // Only check col 0/1 for payer/vendor files to avoid cross-contamination
+      const isStructuredFile = (cat === "paycargo_payers" || cat === "paycargo_vendors");
+      return sheet.slice(1).some(row =>
+        isStructuredFile
+          ? (searchTerms.some(t => String(row[0]??"").toLowerCase().includes(t.toLowerCase())) ||
+             searchTerms.some(t => String(row[1]??"").toLowerCase().includes(t.toLowerCase())))
+          : row.some(c => searchTerms.some(t => String(c??"").toLowerCase().includes(t.toLowerCase())))
+      );
     });
-    const titleMatch = searchTerms.some(t => (d.title||d.name||"").toLowerCase().includes(t.toLowerCase()));
 
-    const priority = namedMatch ? -1   // named file gets highest priority
-                   : hasMatchingFile ? 0
-                   : titleMatch ? 1
-                   : 2;
+    const titleMatch = searchTerms.some(t => (d.title||d.name||"").toLowerCase().includes(t.toLowerCase()));
+    const priority = namedMatch ? -1 : hasMatchingFile ? 0 : titleMatch ? 1 : 2;
 
     return { doc: d, hydratedFiles: hf, priority, cat };
   })
   .filter(Boolean)
   .sort((a,b) => a.priority - b.priority);
 
-  let totalChars = 0;
-  const MAX_CHARS = 60000;
+  // ── KEY FIX: if a named file was found, ONLY send that doc for its section ──
+  // This prevents other files in the same section from contaminating the results.
+  const hasNamedMatch = scored.some(s => s.priority === -1);
+  const finalScored = hasNamedMatch
+    ? scored.filter(s => {
+        const isPayerVendorCat = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
+        // For payer/vendor sections: only include the named doc; keep all other sections
+        return isPayerVendorCat ? s.priority === -1 : true;
+      })
+    : (() => {
+        // No named file — if multiple docs exist in the same section, only use the most recent one
+        // (highest numeric id) to avoid cross-file contamination
+        const seenSections = {};
+        return scored.filter(s => {
+          const isPayerVendorCat = (s.cat === "paycargo_payers" || s.cat === "paycargo_vendors");
+          if (!isPayerVendorCat) return true;
+          // For payer/vendor sections, only keep the highest-priority (lowest score) doc per section
+          if (seenSections[s.cat] === undefined) {
+            seenSections[s.cat] = s.priority;
+            return true;
+          }
+          // Allow additional docs in the same section only if they also have a strong match
+          return s.priority <= 0;
+        });
+      })();
 
-  return "KNOWLEDGE BASE:\n\n" + scored.map(({doc: d, hydratedFiles, priority, cat}) => {
+  let totalChars = 0;
+  const MAX_CHARS = 50000;
+
+  return "KNOWLEDGE BASE:\n\n" + finalScored.map(({doc: d, hydratedFiles, priority, cat}) => {
     const sectionLabel = SECTION_LABELS[cat] || cat.toUpperCase();
     const title = `[${sectionLabel}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
@@ -1041,8 +1093,8 @@ ANALYSIS RULES:
       // ── FIX #2: always pass question so Excel filtering works on follow-ups too ──
       const currentChat = kbChatRef.current;
       const kbContextRaw = buildKbContext(kbData, kbDocs, question);
-      const kbContext = kbContextRaw.length > 55000
-        ? kbContextRaw.slice(0, 55000) + "\n...(context truncated to fit)"
+      const kbContext = kbContextRaw.length > 80000
+        ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)"
         : kbContextRaw;
 
       // Keep last 4 messages; truncate assistant replies to 600 chars to save tokens
@@ -1059,7 +1111,7 @@ ANALYSIS RULES:
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           model:"claude-sonnet-4-20250514",
-          max_tokens: 1500,
+          max_tokens: 2500,
           system: KB_SYSTEM_PROMPT + "\n\n" + kbContext,
           messages: [...historyMessages, { role:"user", content:question }]
         })
