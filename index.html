@@ -357,7 +357,7 @@ function KbFileViewer({ file, activeSheet, onSheetChange, onClose }) {
 // ══════════════════════════════════════════════
 // KB DETAIL PANEL
 // ══════════════════════════════════════════════
-function KbDetailPanel({ selected, onDelete, onAddNote, onUploadFile, noteInput, setNoteInput }) {
+function KbDetailPanel({ selected, onClose, onDelete, onAddNote, onUploadFile, noteInput, setNoteInput }) {
   const { item } = selected;
   const [viewingFile, setViewingFile] = useState(null);
   const [activeSheet, setActiveSheet] = useState(null);
@@ -379,6 +379,7 @@ function KbDetailPanel({ selected, onDelete, onAddNote, onUploadFile, noteInput,
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
+          <button onClick={onClose} style={{ background:"#0d9488", color:"#fff", border:"none", borderRadius:7, padding:"6px 14px", cursor:"pointer", fontSize:12, fontWeight:700 }}>← AI Chat</button>
           <button onClick={onUploadFile} style={{ background:"#f1f5f9", border:"1px solid #e2e8f0", borderRadius:7, padding:"6px 12px", cursor:"pointer", fontSize:12, fontWeight:600 }}>⬆ Upload File</button>
           <button onClick={() => onDelete(item.id)} style={{ background:"#fef2f2", border:"1px solid #fecaca", borderRadius:7, padding:"6px 12px", cursor:"pointer", fontSize:12, color:"#dc2626" }}>Delete</button>
         </div>
@@ -986,6 +987,7 @@ function App() {
               ) : kbSelected ? (
                 <KbDetailPanel
                   selected={kbSelected}
+                  onClose={() => setKbSelected(null)}
                   noteInput={kbNoteInput}
                   setNoteInput={setKbNoteInput}
                   onAddNote={kbAddNote}
