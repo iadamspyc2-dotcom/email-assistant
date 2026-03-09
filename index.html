@@ -1078,9 +1078,10 @@ function App() {
                             const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
                             const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
+                            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
                             const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
                             setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                          } catch(err) { setKbChat(prev=>[...prev,{role:"assistant",content:"Error getting response. Please try again."}]); }
+                          } catch(err) { setKbChat(prev=>[...prev,{role:"assistant",content:"Error: " + (err.message||String(err))}]); }
                           setKbLoading(false);
                           setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
                         }
@@ -1095,8 +1096,9 @@ function App() {
                             const kbContext = kbContextRaw.length > 80000 ? kbContextRaw.slice(0, 80000) + "\n...(context truncated to fit)" : kbContextRaw;
                         const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
+                        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
                         setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
-                      } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error. Please try again."}]);}
+                      } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error: " + (err.message||String(err))}]);}
                       setKbLoading(false); setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
                     }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:7,padding:"0 16px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
                   </div>
