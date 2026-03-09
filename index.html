@@ -317,8 +317,14 @@ textarea.input{resize:vertical;min-height:80px}
         <span class="sb-item-icon">📊</span> Pipeline
       </div>
       <div class="sb-section">Work</div>
+      <div class="sb-item" data-view="email">
+        <span class="sb-item-icon">📨</span> Email Triage
+      </div>
       <div class="sb-item" data-view="ai">
         <span class="sb-item-icon">🤖</span> AI Assistant
+      </div>
+      <div class="sb-item" data-view="ratebuilder">
+        <span class="sb-item-icon">💰</span> Rate Builder
       </div>
       <div class="sb-item" data-view="kb">
         <span class="sb-item-icon">📚</span> Knowledge Base
@@ -920,7 +926,7 @@ function renderView(view) {
   document.querySelectorAll('.sb-item').forEach(el => {
     el.classList.toggle('active', el.dataset.view === view);
   });
-  const titles = { dashboard:'Dashboard', accounts:'Accounts', contacts:'Contacts', pipeline:'Pipeline', ai:'AI Assistant', kb:'Knowledge Base', actions:'Action Items', alerts:'Alerts', settings:'Settings' };
+  const titles = { dashboard:'Dashboard', accounts:'Accounts', contacts:'Contacts', pipeline:'Pipeline', ai:'AI Assistant', email:'Email Triage', ratebuilder:'Rate Builder', kb:'Knowledge Base', actions:'Action Items', alerts:'Alerts', settings:'Settings' };
   document.getElementById('page-title').textContent = titles[view] || '';
   const content = document.getElementById('main-content');
   const headerActions = document.getElementById('header-actions');
@@ -931,6 +937,8 @@ function renderView(view) {
   else if (view === 'contacts') renderContacts();
   else if (view === 'pipeline') renderPipeline();
   else if (view === 'ai') renderAIChat();
+  else if (view === 'email') renderEmailTriage();
+  else if (view === 'ratebuilder') renderRateBuilder();
   else if (view === 'kb') renderKB();
   else if (view === 'actions') renderActions();
   else if (view === 'alerts') renderAlerts();
@@ -1015,8 +1023,11 @@ function renderDashboard() {
     <div class="card" style="margin-top:16px">
       <div class="card-title" style="margin-bottom:16px">⚡ Quick Actions</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button class="btn btn-primary" onclick="runMorningBriefing()" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">☀️ Morning Briefing</button>
         <button class="btn btn-primary" onclick="renderView('ai')">🤖 Open AI Assistant</button>
+        <button class="btn btn-primary" onclick="renderView('email')" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">📨 Email Triage</button>
         <button class="btn btn-secondary" onclick="openAddAccount()">+ Add Account</button>
+        <button class="btn btn-secondary" onclick="openBulkImport()">📋 Bulk Import</button>
         <button class="btn btn-secondary" onclick="renderView('pipeline')">📊 View Pipeline</button>
         <button class="btn btn-secondary" onclick="runWeeklyReport()">📋 Weekly Report</button>
       </div>
@@ -1029,6 +1040,7 @@ function renderDashboard() {
 function renderAccounts() {
   document.getElementById('header-actions').innerHTML = `
     <div class="search-bar"><input class="input" placeholder="Search accounts..." oninput="S.searchQuery=this.value;renderAccounts()" value="${escHTML(S.searchQuery)}"></div>
+    <button class="btn btn-secondary" onclick="openBulkImport()">📋 Bulk Import</button>
     <button class="btn btn-primary" onclick="openAddAccount()">+ Add Account</button>`;
   const filtered = S.accounts.filter(a =>
     !S.searchQuery || a.name.toLowerCase().includes(S.searchQuery.toLowerCase()) ||
@@ -2095,6 +2107,568 @@ function timeAgo(dateStr) {
 }
 function manageQueries() { renderView('settings'); }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ══════════════════════════════════════════════════════
+// MORNING BRIEFING
+// ══════════════════════════════════════════════════════
+async function runMorningBriefing() {
+  renderView('ai');
+  const today = new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  const accountList = S.accounts.map(a => `${a.name} (${a.type||'Payer'}, health: ${a.health||'green'})`).join('\n');
+  const redAccounts = S.accounts.filter(a => a.health === 'red').map(a => a.name).join(', ');
+  const pendingActions = S.actionItems.filter(a => !a.completed);
+  const closingSoon = S.opportunities.filter(o => {
+    if (!o.close_date) return false;
+    const diff = (new Date(o.close_date) - new Date()) / 86400000;
+    return diff >= 0 && diff <= 14;
+  });
+  const overdueActions = pendingActions.filter(a => a.due_date && new Date(a.due_date) < new Date());
+
+  const briefingPrompt = `Good morning! Run my daily briefing for ${today}.
+
+MY ACCOUNTS:
+${accountList || 'No accounts yet'}
+
+PENDING ACTIONS (${pendingActions.length} total, ${overdueActions.length} overdue):
+${pendingActions.slice(0,10).map(a => `- ${a.title}${a.due_date ? ' (due: '+new Date(a.due_date).toLocaleDateString()+')' : ''}`).join('\n') || 'None'}
+
+OPPORTUNITIES CLOSING IN 14 DAYS (${closingSoon.length}):
+${closingSoon.map(o => {
+  const acct = S.accounts.find(a => a.id === o.account_id);
+  return `- ${o.name} (${acct?.name||'Unknown'}) — ${o.stage} — closes ${new Date(o.close_date).toLocaleDateString()}`;
+}).join('\n') || 'None'}
+
+ACCOUNTS NEEDING ATTENTION: ${redAccounts || 'None flagged'}
+
+Based on this data and any transaction/KB data you have access to, give me:
+1. **Top 3 priorities for today** — specific accounts or actions I should focus on first
+2. **Who to reach out to today** — accounts that need contact based on health, recency, or pipeline stage
+3. **Any risks I should be aware of** — declining accounts, stalled deals, overdue actions
+4. **One proactive suggestion** — something I probably haven't thought of based on the data
+
+Be direct and specific. This is my morning briefing — I want to know exactly what to do today.`;
+
+  setTimeout(() => sendGlobalChat(briefingPrompt), 300);
+}
+
+// ══════════════════════════════════════════════════════
+// BULK ACCOUNT IMPORT
+// ══════════════════════════════════════════════════════
+function openBulkImport() {
+  showModal(`
+    <div class="modal-header"><div class="modal-title">📋 Bulk Account Import</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Paste a list of company names — one per line. The app will create an account for each one.</p>
+    <div class="form-group">
+      <label class="label">Company Names (one per line)</label>
+      <textarea id="bulk-names" class="input" style="min-height:200px;font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Accelerated Global Solutions
+C.H. Robinson
+UPS
+DP World Logistics
+Expeditors
+Estes Forwarding
+Fast Track
+Radiant Global Logistics
+TRANSFAIR (Transgroup)
+SPARX LOGISTICS
+Odyssey Logistics
+Amazon
+CV International"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="label">Default Type for all</label>
+      <select id="bulk-type" class="input">
+        <option>Payer</option><option>Vendor</option><option>Partner</option><option>Prospect</option>
+      </select>
+    </div>
+    <div id="bulk-progress" style="display:none;margin-bottom:12px">
+      <div style="font-size:13px;color:var(--muted)" id="bulk-status">Importing...</div>
+      <div style="background:var(--border);border-radius:99px;height:6px;margin-top:8px">
+        <div id="bulk-bar" style="background:var(--accent);height:6px;border-radius:99px;width:0%;transition:.3s"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="bulk-btn" onclick="runBulkImport()">Import Accounts</button>
+    </div>`);
+}
+
+async function runBulkImport() {
+  const raw = document.getElementById('bulk-names')?.value?.trim();
+  const type = document.getElementById('bulk-type')?.value || 'Payer';
+  if (!raw) return;
+  const names = raw.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+  if (names.length === 0) return;
+
+  document.getElementById('bulk-btn').disabled = true;
+  document.getElementById('bulk-progress').style.display = 'block';
+
+  let created = 0;
+  let skipped = 0;
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    document.getElementById('bulk-status').textContent = `Creating "${name}"... (${i+1}/${names.length})`;
+    document.getElementById('bulk-bar').style.width = `${((i+1)/names.length)*100}%`;
+
+    // Check if already exists
+    const exists = S.accounts.some(a => a.name.toLowerCase() === name.toLowerCase());
+    if (exists) { skipped++; continue; }
+
+    const { data } = await db.from('accounts').insert({ name, type, health: 'green' }).select().single();
+    if (data) { S.accounts.push(data); created++; }
+  }
+
+  S.accounts.sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById('bulk-status').textContent = `✅ Done! Created ${created} accounts${skipped > 0 ? `, skipped ${skipped} duplicates` : ''}.`;
+  document.getElementById('bulk-bar').style.width = '100%';
+  document.getElementById('bulk-btn').textContent = 'Close';
+  document.getElementById('bulk-btn').onclick = () => { closeModal(); renderAccounts(); updateBadges(); };
+  document.getElementById('bulk-btn').disabled = false;
+}
+
+// ══════════════════════════════════════════════════════
+// EMAIL TRIAGE
+// ══════════════════════════════════════════════════════
+function renderEmailTriage() {
+  document.getElementById('header-actions').innerHTML = '';
+  document.getElementById('main-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;height:calc(100vh - 110px)">
+      <div class="card" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px">📨 Paste Email</div>
+          <div style="font-size:12px;color:var(--muted)">Paste any email and the AI will analyze it, suggest a response, extract action items, and identify the account.</div>
+        </div>
+        <div style="padding:16px;flex:1;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label class="label">Email Content</label>
+            <textarea id="email-input" class="input" style="min-height:220px;font-size:13px;line-height:1.6" placeholder="Paste the full email here — subject line, sender, body..."></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label class="label">Tone for reply</label>
+              <select id="email-tone" class="input">
+                <option>Professional</option>
+                <option>Friendly</option>
+                <option>Urgent</option>
+                <option>Follow-up</option>
+                <option>Closing</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Link to Account (optional)</label>
+              <select id="email-account" class="input">
+                <option value="">— Auto-detect —</option>
+                ${S.accounts.map(a => `<option value="${a.id}">${escHTML(a.name)}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" onclick="analyzeEmail()">🔍 Analyze Email</button>
+            <button class="btn btn-secondary" onclick="draftEmailReply()">✍️ Draft Reply</button>
+            <button class="btn btn-secondary" onclick="extractEmailActions()">✅ Extract Actions</button>
+            <button class="btn btn-secondary" onclick="genEmailSFNote()">📋 SF Note</button>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="display:flex;flex-direction:column;padding:0;overflow:hidden">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+          <div style="font-size:15px;font-weight:700">🤖 AI Analysis</div>
+        </div>
+        <div id="email-result" style="flex:1;overflow-y:auto;padding:16px;font-size:13.5px;line-height:1.7;color:var(--muted)">
+          <div class="empty-state">
+            <div class="empty-state-icon">📧</div>
+            <h3>Paste an email to get started</h3>
+            <p>The AI will analyze sentiment, identify the account, suggest next steps, and draft a reply in your voice.</p>
+          </div>
+        </div>
+        <div id="email-actions-bar" style="display:none;padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+    </div>`;
+}
+
+async function analyzeEmail() {
+  const email = document.getElementById('email-input')?.value?.trim();
+  if (!email) { alert('Paste an email first'); return; }
+  const accountId = document.getElementById('email-account')?.value || null;
+  const acct = accountId ? S.accounts.find(a => a.id === accountId) : null;
+  showEmailLoading();
+  try {
+    const context = buildKbContext(email, accountId);
+    const writingStyle = S.settings.writing_style ? `\n\nISSAC'S WRITING STYLE:\n${S.settings.writing_style}` : '';
+    const resp = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 2000,
+        system: KB_SYSTEM_PROMPT + '\n\n' + context + writingStyle,
+        messages: [{ role: 'user', content: `Analyze this email and give me:
+
+## 📊 Summary
+One sentence on what this email is about.
+
+## 🎯 Sender & Account
+Who sent this and which PayCargo account they're likely from. Sentiment: Positive / Neutral / Concerned / Urgent.
+
+## ⚡ What They Need
+What are they actually asking for or expecting from me?
+
+## 🔑 Key Points
+3-5 bullet points of the most important things in this email.
+
+## ✅ Recommended Next Steps
+What should I do? List 2-3 specific actions with priority (High/Medium/Low).
+
+## 💡 Context from KB
+Any relevant transaction data, account history, or context I should know before replying.
+
+EMAIL:
+${email}` }]
+      })
+    });
+    const d = await resp.json();
+    showEmailResult(d.content?.[0]?.text || 'No response');
+  } catch(err) { showEmailResult('⚠️ Error: ' + err.message); }
+}
+
+async function draftEmailReply() {
+  const email = document.getElementById('email-input')?.value?.trim();
+  if (!email) { alert('Paste an email first'); return; }
+  const tone = document.getElementById('email-tone')?.value || 'Professional';
+  const accountId = document.getElementById('email-account')?.value || null;
+  showEmailLoading();
+  try {
+    const context = buildKbContext(email, accountId);
+    const writingStyle = S.settings.writing_style ? `\n\nISSAC'S WRITING STYLE (match this tone exactly):\n${S.settings.writing_style}` : '';
+    const resp = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 1500,
+        system: KB_SYSTEM_PROMPT + '\n\n' + context + writingStyle,
+        messages: [{ role: 'user', content: `Draft a ${tone.toLowerCase()} email reply to this email on behalf of Isaac Adams, Director of Enterprise Development at PayCargo.
+
+Requirements:
+- Match Isaac's writing style from the examples provided
+- Be concise and direct — no fluff
+- Reference specific data from the KB if relevant
+- End with a clear next step
+- Include subject line
+- Tone: ${tone}
+
+Format as:
+**Subject:** Re: [original subject]
+
+[email body]
+
+EMAIL TO REPLY TO:
+${email}` }]
+      })
+    });
+    const d = await resp.json();
+    showEmailResult(d.content?.[0]?.text || 'No response');
+  } catch(err) { showEmailResult('⚠️ Error: ' + err.message); }
+}
+
+async function extractEmailActions() {
+  const email = document.getElementById('email-input')?.value?.trim();
+  if (!email) { alert('Paste an email first'); return; }
+  const accountId = document.getElementById('email-account')?.value || null;
+  showEmailLoading();
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 800,
+        messages: [{ role: 'user', content: `Extract all action items from this email. For each action item identify:
+- What needs to be done
+- Who needs to do it (me = Isaac, or them)
+- Urgency (High/Medium/Low)
+- Suggested due date if implied
+
+Format as a clear list. Then at the end ask if I want to save these to my Action Items.
+
+EMAIL:
+${email}` }]
+      })
+    });
+    const d = await resp.json();
+    const result = d.content?.[0]?.text || '';
+    showEmailResult(result);
+    // Show save button
+    document.getElementById('email-actions-bar').style.display = 'flex';
+    document.getElementById('email-actions-bar').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="saveEmailActions('${accountId||''}')">✅ Save Actions to App</button>
+      <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('email-result')">📋 Copy</button>`;
+  } catch(err) { showEmailResult('⚠️ Error: ' + err.message); }
+}
+
+async function saveEmailActions(accountId) {
+  const result = document.getElementById('email-result')?.innerText || '';
+  const lines = result.split('\n').filter(l => l.match(/^[-•*]\s|^\d+[.)]/));
+  for (const line of lines.slice(0, 10)) {
+    const title = line.replace(/^[-•*\d.)\s]+/, '').trim();
+    if (title.length > 5) {
+      const { data } = await db.from('action_items').insert({
+        title: title.slice(0, 200),
+        account_id: accountId || null,
+        source: 'email',
+      }).select().single();
+      if (data) S.actionItems.unshift(data);
+    }
+  }
+  updateBadges();
+  alert(`✅ Saved ${Math.min(lines.length, 10)} action items!`);
+}
+
+async function genEmailSFNote() {
+  const email = document.getElementById('email-input')?.value?.trim();
+  if (!email) { alert('Paste an email first'); return; }
+  const accountId = document.getElementById('email-account')?.value || null;
+  const acct = accountId ? S.accounts.find(a => a.id === accountId) : null;
+  showEmailLoading();
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 800,
+        messages: [{ role: 'user', content: `Generate a Salesforce activity note based on this email. Format it professionally for pasting into Salesforce:
+
+Account: ${acct?.name || 'Unknown'}
+Date: ${new Date().toLocaleDateString()}
+Type: Email
+Direction: Inbound
+
+Summary: [2-3 sentences describing the email content and context]
+Key Points: [bullet points of what was discussed]
+Next Steps: [what needs to happen next]
+Follow-up Date: [suggested follow-up date]
+
+EMAIL:
+${email}` }]
+      })
+    });
+    const d = await resp.json();
+    showEmailResult(d.content?.[0]?.text || 'No response');
+    document.getElementById('email-actions-bar').style.display = 'flex';
+    document.getElementById('email-actions-bar').innerHTML = `<button class="btn btn-primary btn-sm" onclick="copyEmailResult()">📋 Copy to Clipboard</button>`;
+  } catch(err) { showEmailResult('⚠️ Error: ' + err.message); }
+}
+
+function showEmailLoading() {
+  document.getElementById('email-result').innerHTML = '<div style="padding:24px;text-align:center"><div class="spinner" style="margin:0 auto 12px"></div><div style="color:var(--muted);font-size:13px">Analyzing...</div></div>';
+  document.getElementById('email-actions-bar').style.display = 'none';
+}
+function showEmailResult(text) {
+  document.getElementById('email-result').innerHTML = renderMD(text);
+}
+function copyEmailResult() {
+  const text = document.getElementById('email-result')?.innerText || '';
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+}
+
+// ══════════════════════════════════════════════════════
+// RATE BUILDER
+// ══════════════════════════════════════════════════════
+function renderRateBuilder() {
+  document.getElementById('header-actions').innerHTML = '';
+  document.getElementById('main-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:380px 1fr;gap:16px;height:calc(100vh - 110px)">
+      <div style="display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+        <div class="card">
+          <div class="card-title">💰 Rate & Proposal Builder</div>
+          <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Build rate proposals and pricing models based on account volume, industry, and transaction patterns.</p>
+          <div class="form-group">
+            <label class="label">Account</label>
+            <select id="rb-account" class="input" onchange="loadAccountDataForRate()">
+              <option value="">— Select account —</option>
+              ${S.accounts.map(a => `<option value="${a.id}">${escHTML(a.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="label">Monthly Transaction Volume</label>
+            <input id="rb-volume" class="input" type="number" placeholder="e.g. 500" oninput="updateRateEstimate()">
+            <div id="rb-volume-hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+          </div>
+          <div class="form-group">
+            <label class="label">Average Transaction Value ($)</label>
+            <input id="rb-avg-value" class="input" type="number" placeholder="e.g. 2500">
+          </div>
+          <div class="form-group">
+            <label class="label">Industry / Segment</label>
+            <select id="rb-industry" class="input">
+              <option>Freight Forwarding</option>
+              <option>3PL / Logistics</option>
+              <option>E-commerce / Retail</option>
+              <option>Airlines / GSA</option>
+              <option>Ocean Freight</option>
+              <option>Ground Transport</option>
+              <option>Customs Broker</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="label">Current Rate Structure</label>
+            <input id="rb-current-rate" class="input" placeholder="e.g. 1.5% per transaction, flat $3/txn">
+          </div>
+          <div class="form-group">
+            <label class="label">Goal</label>
+            <select id="rb-goal" class="input">
+              <option>New customer proposal</option>
+              <option>Renewal / renegotiation</option>
+              <option>Volume expansion</option>
+              <option>Competitive response</option>
+              <option>Win-back</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="label">Additional Context</label>
+            <textarea id="rb-context" class="input" placeholder="Any special considerations — competitors they're evaluating, pain points, timeline..."></textarea>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="buildRateProposal()">🚀 Build Rate Proposal</button>
+        </div>
+        <div class="card" id="rb-volume-tiers" style="display:none">
+          <div class="card-title">📊 Volume Tiers</div>
+          <div id="rb-tiers-content"></div>
+        </div>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+        <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:700">📄 Rate Proposal</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="copyRateProposal()" id="rb-copy-btn" style="display:none">📋 Copy</button>
+            <button class="btn btn-secondary btn-sm" onclick="sendRateToChat()" id="rb-chat-btn" style="display:none">💬 Discuss in Chat</button>
+          </div>
+        </div>
+        <div id="rb-result" style="flex:1;overflow-y:auto;padding:20px;font-size:13.5px;line-height:1.7">
+          <div class="empty-state">
+            <div class="empty-state-icon">💰</div>
+            <h3>Build a Rate Proposal</h3>
+            <p>Select an account and fill in the volume details. The AI will suggest a rate structure based on their transaction patterns and industry benchmarks, then generate a proposal you can send.</p>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function loadAccountDataForRate() {
+  const accountId = document.getElementById('rb-account')?.value;
+  if (!accountId) return;
+  const acct = S.accounts.find(a => a.id === accountId);
+  if (!acct) return;
+  if (acct.committed_monthly_volume) {
+    document.getElementById('rb-volume').value = acct.committed_monthly_volume;
+    document.getElementById('rb-volume-hint').textContent = `From account profile: ${acct.committed_monthly_volume.toLocaleString()} committed txns/mo`;
+  }
+  if (acct.industry) {
+    const sel = document.getElementById('rb-industry');
+    for (const opt of sel.options) {
+      if (opt.value.toLowerCase().includes(acct.industry.toLowerCase().split(' ')[0])) {
+        sel.value = opt.value; break;
+      }
+    }
+  }
+  updateRateEstimate();
+}
+
+function updateRateEstimate() {
+  const vol = parseInt(document.getElementById('rb-volume')?.value) || 0;
+  const tiersDiv = document.getElementById('rb-volume-tiers');
+  const tiersContent = document.getElementById('rb-tiers-content');
+  if (vol === 0) { tiersDiv.style.display = 'none'; return; }
+  tiersDiv.style.display = 'block';
+  const tier = vol < 100 ? 'Starter' : vol < 500 ? 'Growth' : vol < 2000 ? 'Business' : 'Enterprise';
+  const suggested = vol < 100 ? '2.5–3.0%' : vol < 500 ? '1.8–2.3%' : vol < 2000 ? '1.2–1.8%' : '0.8–1.2%';
+  tiersContent.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+      ${[['<100/mo','Starter','2.5–3.0%'],['100–499/mo','Growth','1.8–2.3%'],['500–1999/mo','Business','1.2–1.8%'],['2000+/mo','Enterprise','0.8–1.2%']].map(([range,t,rate])=>`
+        <div style="padding:10px;border-radius:8px;border:2px solid ${t===tier?'var(--accent)':'var(--border)'};background:${t===tier?'rgba(16,185,129,.05)':'#fff'}">
+          <div style="font-weight:700;color:${t===tier?'var(--accent)':'var(--text)'}">${t}</div>
+          <div style="color:var(--muted)">${range}</div>
+          <div style="font-size:13px;font-weight:700;margin-top:4px">${rate}</div>
+        </div>`).join('')}
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:rgba(16,185,129,.08);border-radius:8px;font-size:12px;color:var(--accent);font-weight:600">
+      📊 At ${vol.toLocaleString()} txns/mo → suggested rate: <strong>${suggested}</strong>
+    </div>`;
+}
+
+async function buildRateProposal() {
+  const accountId = document.getElementById('rb-account')?.value;
+  const volume = document.getElementById('rb-volume')?.value;
+  const avgValue = document.getElementById('rb-avg-value')?.value;
+  const industry = document.getElementById('rb-industry')?.value;
+  const currentRate = document.getElementById('rb-current-rate')?.value;
+  const goal = document.getElementById('rb-goal')?.value;
+  const context = document.getElementById('rb-context')?.value;
+  const acct = accountId ? S.accounts.find(a => a.id === accountId) : null;
+
+  document.getElementById('rb-result').innerHTML = '<div style="padding:24px;text-align:center"><div class="spinner" style="margin:0 auto 12px"></div><div style="color:var(--muted);font-size:13px">Building proposal...</div></div>';
+
+  try {
+    const kbContext = accountId ? buildKbContext(`rate proposal ${acct?.name}`, accountId) : '';
+    const resp = await fetch(API_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514', max_tokens: 2500,
+        system: KB_SYSTEM_PROMPT + (kbContext ? '\n\n' + kbContext : ''),
+        messages: [{ role: 'user', content: `Build a rate proposal for PayCargo.
+
+ACCOUNT: ${acct?.name || 'Prospective Customer'}
+INDUSTRY: ${industry}
+MONTHLY VOLUME: ${volume || 'Unknown'} transactions
+AVG TRANSACTION VALUE: ${avgValue ? '$' + avgValue : 'Unknown'}
+CURRENT RATE: ${currentRate || 'Not specified'}
+GOAL: ${goal}
+CONTEXT: ${context || 'Standard proposal'}
+
+Build a complete rate proposal that includes:
+
+## Executive Summary
+One paragraph on the value proposition for this specific account.
+
+## Proposed Rate Structure
+A tiered rate structure with 2-3 options (Good/Better/Best). For each tier include:
+- Rate per transaction or percentage
+- Monthly minimum (if applicable)
+- What's included
+- Estimated monthly cost at their volume
+
+## Volume-Based Incentives
+Milestones where rates improve as volume increases.
+
+## Why This Makes Sense for [Account Name]
+3-4 specific reasons tied to their industry and volume — reference any KB data available.
+
+## Competitive Positioning
+How this compares to industry standard rates (without naming competitors specifically).
+
+## Next Steps
+Clear call to action.
+
+Make this ready to present or send. Use their actual numbers.` }]
+      })
+    });
+    const d = await resp.json();
+    const result = d.content?.[0]?.text || 'No response';
+    document.getElementById('rb-result').innerHTML = renderMD(result);
+    document.getElementById('rb-copy-btn').style.display = '';
+    document.getElementById('rb-chat-btn').style.display = '';
+    // Store for chat
+    window._lastRateProposal = result;
+  } catch(err) {
+    document.getElementById('rb-result').innerHTML = '⚠️ Error: ' + err.message;
+  }
+}
+
+function copyRateProposal() {
+  const text = document.getElementById('rb-result')?.innerText || '';
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+}
+
+function sendRateToChat() {
+  if (!window._lastRateProposal) return;
+  renderView('ai');
+  setTimeout(() => {
+    sendGlobalChat(`I just built a rate proposal. Can you help me refine it and anticipate objections the customer might have?\n\nPROPOSAL:\n${window._lastRateProposal.slice(0, 2000)}`);
+  }, 300);
+}
 </script>
 </body>
 </html>
