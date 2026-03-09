@@ -2218,9 +2218,9 @@ async function runBulkImport() {
     const exists = S.accounts.some(a => a.name.toLowerCase() === name.toLowerCase());
     if (exists) { skipped++; continue; }
 
-    const { data, error } = await db.from('accounts').insert({ name, type, health: 'green' }).select().single();
+    const { data, error } = await db.from('accounts').insert({ name, type }).select().single();
     if (data) { S.accounts.push(data); created++; }
-    else if (error) { console.error('Insert error for', name, error); skipped++; }
+    else if (error) { console.error('Insert error for', name, JSON.stringify(error)); skipped++; }
   }
 
   S.accounts.sort((a,b) => a.name.localeCompare(b.name));
