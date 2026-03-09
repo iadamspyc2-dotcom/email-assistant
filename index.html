@@ -319,34 +319,70 @@ const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[]
 function fileToText(f, maxRows=150, searchTerms=[], sectionLabel="") {
   if (!f) return "";
   f = hydrateFile(f);
-  // Prefix every file header with its section so the AI always knows context
   const sectionPrefix = sectionLabel ? `[${sectionLabel}]\n` : "";
+  const isPayerFile  = sectionLabel.toLowerCase().includes("payer file");
+  const isVendorFile = sectionLabel.toLowerCase().includes("vendor file");
+
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
     const header = sheet[0] || [];
     const dataRows = sheet.slice(1);
-    let resultRows = [];
+
     if (searchTerms.length > 0) {
-      const matches = dataRows.filter(row =>
-        row.some(c => searchTerms.some(t => String(c ?? "").toLowerCase().includes(t.toLowerCase())))
-      );
+      const termsLC = searchTerms.map(t => t.toLowerCase());
+      const matchesAny = (val) => termsLC.some(t => String(val ?? "").toLowerCase().includes(t));
+
+      // Build a column legend so the AI knows what each column means for THIS file
+      const colLegend = isPayerFile
+        ? "Columns: [0]=Payer Group | [1]=Payer Branch | [2]=Vendor paid | [3+]=Monthly transactions\n"
+        : isVendorFile
+        ? "Columns: [0]=Vendor Group | [1]=Vendor Branch | [2]=Payer who paid | [3+]=Monthly transactions\n"
+        : "";
+
+      let matches = [];
+
+      if (isPayerFile || isVendorFile) {
+        // ── PRIORITY SEARCH: Column 0 = Payer Group, Column 1 = Branch/Payer Name ──
+        // First try to find rows where the search term appears in col 0 or col 1 only.
+        // This prevents "Accelerated Inc" (a vendor in col 2) from hijacking a search
+        // for "Accelerated Global Solutions" (a payer in col 0).
+        const col01Matches = dataRows.filter(row =>
+          matchesAny(row[0]) || matchesAny(row[1])
+        );
+
+        if (col01Matches.length > 0) {
+          // Good — found the payer/branch directly. Use only these rows.
+          matches = col01Matches;
+        } else {
+          // No col 0/1 match — fall back to searching all columns
+          matches = dataRows.filter(row => row.some(c => matchesAny(c)));
+        }
+      } else {
+        // Non-payer/vendor files: search all columns as before
+        matches = dataRows.filter(row => row.some(c => matchesAny(c)));
+      }
+
       if (matches.length > 0) {
-        resultRows = matches.slice(0, 200);
+        const resultRows = matches.slice(0, 200);
         const headerLine = header.map(c => String(c ?? "")).join("\t");
         const matchLines = resultRows.map(row => row.map(c => String(c ?? "")).join("\t"));
-        const note = matches.length > 500 ? `\n(showing 200 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
-        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
+        const note = matches.length > 200
+          ? `\n(showing 200 of ${matches.length} matching rows out of ${dataRows.length} total)`
+          : `\n(${matches.length} matching rows out of ${dataRows.length} total)`;
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}Filtered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
       } else {
         const fallback = sheet.slice(0, maxRows+1).map(row => row.map(c => String(c ?? "")).join("\t"));
-        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\nNo rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
+        return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total]\n${colLegend}No rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
       }
     }
+
     const rows = sheet.slice(0, maxRows+1);
     const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
-    const extra = sheet.length > maxRows+1 ? `\n(${sheet.length - maxRows - 1} more rows not shown — AI will search by company name automatically)` : "";
+    const extra = sheet.length > maxRows+1 ? `\n(${sheet.length - maxRows - 1} more rows not shown)` : "";
     return `${sectionPrefix}[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
+
   if (f.type === "word" || f.type === "text") {
     const text = f.extractedText || "";
     return `[Doc: ${f.name}]\n` + text.slice(0, 4000) + (text.length > 4000 ? "\n...(truncated)" : "");
@@ -955,23 +991,35 @@ RESPONSE STYLE — CRITICAL:
 - If data is missing, say so in one sentence then move on. Never list "possible solutions" at length.
 - Never repeat the user's question back to them.
 
-PAYERS EXCEL FILE — DATA STRUCTURE:
-The file has a 3-level row hierarchy:
-  Level 1 — Payer Group name (the parent customer account)
-  Level 2 — Branch/Location of that payer (e.g. JFK/HQ, LAX, ORD)
-  Level 3 — Vendor name (the company the payer is paying through PayCargo)
-Monthly transaction/volume columns follow the name columns.
+EXCEL FILE STRUCTURES — THE SAME COMPANY CAN APPEAR IN BOTH FILES IN DIFFERENT ROLES:
+A company like "Accelerated Global Solutions" can be both a payer (in the payer file) AND appear as a vendor (in the vendor file). The file it was uploaded under determines its role. Always read the [PAYER FILE] or [VENDOR FILE] label to know which role applies.
 
-KNOWN PAYER GROUPS (search for these exact names or substrings in PAYER FILE data):
+[PAYER FILE] column structure — subject is the PAYER (who makes payments):
+  Column 0 = Payer Group      — top-level payer account (e.g. "Accelerated Global Solutions- Payer")
+  Column 1 = Payer Name       — individual branch of that payer (e.g. "Accelerated Global Solutions (JFK/HQ)")
+  Column 2 = Vendor Group     — vendor that received the payment (e.g. "WFS (ePic)", "Lufthansa")
+  Columns 3+ = monthly transaction counts
+  → When asked about a payer: find them in column 0/1, then show which vendors (col 2) they paid and how volumes changed.
+
+[VENDOR FILE] column structure — subject is the VENDOR (who receives payments):
+  Column 0 = Vendor Group     — top-level vendor account (e.g. "Accelerated Inc")
+  Column 1 = Vendor Name      — individual branch of that vendor (e.g. "Accelerated Inc (MEM)", "Accelerated Inc (JFK)")
+  Column 2 = Payer Group      — payer that sent the payment
+  Columns 3+ = monthly transaction counts
+  → When asked about a vendor: find them in column 0/1, then show which payers (col 2) paid them and how volumes changed.
+
+CRITICAL COLUMN RULE: Never describe a company as "a vendor" just because it appears in column 2 of the payer file — it is simply the vendor that received that payer's payment. The subject of the analysis is always the entity in column 0/1.
+
+KNOWN PAYER GROUPS (in [PAYER FILE] data, column 0):
 - UPS-Payers (US)
-- Accelerated Global Solutions- Payer  [also search: "Accelerated Global", "AGS"]
+- Accelerated Global Solutions- Payer  [search: "Accelerated Global", "AGS"]
 - C.H. Robinson
 - Expeditors
 - Estes Forwarding-Payer
 - Radiant Global Logistics
 - Fast Track-Payer
-- TRANSFAIR (Transgroup)-Payer (US)  [also search: "Transgroup", "TRANSFAIR"]
-- DP World Logistics - Payer  [also search: "DP World"]
+- TRANSFAIR (Transgroup)-Payer (US)  [search: "Transgroup", "TRANSFAIR"]
+- DP World Logistics - Payer  [search: "DP World"]
 - SPARX LOGISTICS
 - Odyssey Logistics
 - Amazon
@@ -979,10 +1027,10 @@ KNOWN PAYER GROUPS (search for these exact names or substrings in PAYER FILE dat
 - Accelerated Global Solutions (CAN)-Payer
 
 ANALYSIS RULES:
-- Always break down by Branch/Location — never give one aggregate total for a payer group.
-- Cite actual numbers from the data.
-- When asked about payment decreases or stops, compare recent months vs earlier months.
-- The VENDORS file has a similar structure: vendor group → individual locations.`;
+- Always break down by individual branch (column 1) — never give one aggregate total.
+- Cite specific numbers from the data. Compare recent months vs earlier months for trend analysis.
+- "Total" rows in the data are summary rows — use them for context but always show the branch detail too.
+- When a company appears in both files, keep the analyses separate and clearly labeled.`;
 
   async function sendKbMessage(question) {
     if (!question.trim() || kbLoading) return;
