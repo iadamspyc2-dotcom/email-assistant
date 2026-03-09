@@ -232,7 +232,7 @@ function fileToText(f, maxRows=80) {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
     const rows = sheet.slice(0, maxRows+1);
-    const lines = rows.map(row => row.map(c => String(c??""||"")).join("\t"));
+    const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
     const extra = sheet.length > maxRows+1 ? `\n... (${sheet.length - maxRows - 1} more rows not shown)` : "";
     return `[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
