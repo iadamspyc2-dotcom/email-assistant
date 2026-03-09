@@ -1,35 +1,9 @@
-import https from 'https';
+// Using native fetch (Node 18+, no imports needed)
 
 const SUPABASE_URL = 'https://cafgtjvajulozcvocnurj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZmd0anZhanVsb3p2b2NudXJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODIyMzAsImV4cCI6MjA4ODY1ODIzMH0.oQSeIgGpQx5ZoyYBau9oXQN8ieJ8VYUxwcGdNNhwRbA';
 
-function httpsRequest(url, method, headers, body) {
-  return new Promise((resolve, reject) => {
-    const u = new URL(url);
-    const opts = {
-      hostname: u.hostname,
-      path: u.pathname + u.search,
-      method,
-      headers: { ...headers },
-    };
-    if (body) {
-      const buf = Buffer.from(body, 'utf8');
-      opts.headers['Content-Length'] = buf.length;
-    }
-    const req = https.request(opts, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve({
-        ok: res.statusCode >= 200 && res.statusCode < 300,
-        status: res.statusCode,
-        text: () => Promise.resolve(data)
-      }));
-    });
-    req.on('error', reject);
-    if (body) req.write(body);
-    req.end();
-  });
-}
+
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -93,17 +67,21 @@ export default async function handler(req, res) {
       return res.status(400).json({ data: null, error: `Unknown operation: ${operation}` });
     }
 
-    const r = await httpsRequest(url, method, headers, body);
+    const fetchOptions = { method, headers };
+    if (body) fetchOptions.body = body;
+
+    const r = await fetch(url, fetchOptions);
     const text = await r.text();
+
     let result;
     try { result = JSON.parse(text); } catch (e) { result = text; }
 
     if (r.ok) {
-      res.status(200).json({ data: result, error: null });
+      return res.status(200).json({ data: result, error: null });
     } else {
-      res.status(200).json({ data: null, error: result });
+      return res.status(200).json({ data: null, error: result });
     }
   } catch (err) {
-    res.status(500).json({ data: null, error: { message: err.message } });
+    return res.status(500).json({ data: null, error: { message: err.message } });
   }
 }
