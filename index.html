@@ -226,14 +226,34 @@ const KB_KEYS = ["projects","customers","industry","paycargo_vendors","paycargo_
 const PROFILE_TAGS = ["Vendor","Payer","Partner","Prospect","Key Account"];
 const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[], paycargo_payers:[] };
 
-function fileToText(f, maxRows=10000) {
+function fileToText(f, maxRows=150, searchTerms=[]) {
   if (!f) return "";
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
+    const header = sheet[0] || [];
+    const dataRows = sheet.slice(1);
+    let resultRows = [];
+    if (searchTerms.length > 0) {
+      // Find all rows matching any search term
+      const matches = dataRows.filter(row =>
+        row.some(c => searchTerms.some(t => String(c ?? "").toLowerCase().includes(t.toLowerCase())))
+      );
+      if (matches.length > 0) {
+        resultRows = matches.slice(0, 2000);
+        const headerLine = header.map(c => String(c ?? "")).join("\t");
+        const matchLines = resultRows.map(row => row.map(c => String(c ?? "")).join("\t"));
+        const note = matches.length > 2000 ? `\n(showing 2000 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
+        return `[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
+      } else {
+        // No match found — return first rows so AI can see structure
+        const fallback = sheet.slice(0, maxRows+1).map(row => row.map(c => String(c ?? "")).join("\t"));
+        return `[Excel: ${f.name} — ${f.rowCount} rows total]\nNo rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
+      }
+    }
     const rows = sheet.slice(0, maxRows+1);
     const lines = rows.map(row => row.map(c => String(c ?? "")).join("\t"));
-    const extra = sheet.length > maxRows+1 ? `\n... (${sheet.length - maxRows - 1} more rows not shown — ask about specific companies/rows to get their data)` : "";
+    const extra = sheet.length > maxRows+1 ? `\n(${sheet.length - maxRows - 1} more rows not shown — AI will search by company name automatically)` : "";
     return `[Excel: ${f.name} — ${f.rowCount} rows total, sheet "${sheetName}"]\n` + lines.join("\n") + extra;
   }
   if (f.type === "word" || f.type === "text") {
@@ -243,7 +263,28 @@ function fileToText(f, maxRows=10000) {
   return `[File: ${f.name}]`;
 }
 
-function buildKbContext(kbData, kbDocs) {
+// Extract likely search terms from a user question (company names, proper nouns)
+function extractSearchTerms(question) {
+  // Extract quoted strings first
+  const quoted = [...question.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+  // Split into words, keep capitalized words/phrases (likely proper nouns)
+  const words = question.replace(/[^\w\s\-]/g, " ").split(/\s+/).filter(w => w.length > 2);
+  const caps = words.filter(w => /^[A-Z]/.test(w) && !/^(The|And|For|From|What|Which|Where|When|Who|How|Can|Did|Has|Have|Show|Find|List|Tell|Give|Get)$/.test(w));
+  // Also extract multi-word company-like phrases (2-4 consecutive capitalized words)
+  const phrases = [];
+  for (let i = 0; i < words.length - 1; i++) {
+    if (/^[A-Z]/.test(words[i]) && /^[A-Z]/.test(words[i+1])) {
+      phrases.push(words[i] + " " + words[i+1]);
+      if (i+2 < words.length && /^[A-Z]/.test(words[i+2])) {
+        phrases.push(words[i] + " " + words[i+1] + " " + words[i+2]);
+      }
+    }
+  }
+  return [...new Set([...quoted, ...phrases, ...caps])].slice(0, 10);
+}
+
+function buildKbContext(kbData, kbDocs, question="") {
+  const searchTerms = question ? extractSearchTerms(question) : [];
   const allDocs = [...(kbDocs||[])];
   KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
   if (!allDocs.length) return "No knowledge base documents yet.";
@@ -251,7 +292,7 @@ function buildKbContext(kbData, kbDocs) {
     const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
     const notes = d.notes?.length ? "\n\nNotes:\n" + d.notes.map(n=>n.text||n).join("\n") : "";
-    const files = d.files?.length ? "\n\nAttached Files:\n" + d.files.map(f=>fileToText(f)).join("\n\n") : "";
+    const files = d.files?.length ? "\n\nAttached Files:\n" + d.files.map(f=>fileToText(f, 150, searchTerms)).join("\n\n") : "";
     return `${title}:\n${body}${notes}${files}`;
   }).join("\n\n---\n\n");
 }
@@ -1033,7 +1074,7 @@ function App() {
                           const question = kbInput.trim();
                           setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                           try {
-                            const kbContext = buildKbContext(kbData, kbDocs);
+                            const kbContext = buildKbContext(kbData, kbDocs, question);
                             const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                             const data = await res.json();
                             const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
@@ -1049,7 +1090,7 @@ function App() {
                       if(!kbInput.trim()||kbLoading) return;
                       const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
                       try {
-                        const kbContext = buildKbContext(kbData, kbDocs);
+                        const kbContext = buildKbContext(kbData, kbDocs, question);
                         const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes. The Excel files contain thousands of rows — up to 10,000 rows are provided. Scan ALL provided rows to find the requested company or data. Never say you cannot find something without first thoroughly searching all rows. Cite specific numbers when referencing data.\n\n${kbContext}`,messages:[...kbChat.map(m=>({role:m.role,content:m.content})),{role:"user",content:question}]})});
                         const data=await res.json();
                         setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
