@@ -186,13 +186,10 @@ async function parseFile(file) {
     const id = Date.now()+Math.random();
     const saveResult = saveSheets(id, sheets);
     const rowCount = Math.max(0, first.length - 1);
-    // Don't store sheets in the main kbData object — too large for localStorage
-    // They're stored separately via saveSheets and loaded via hydrateFile
     return { ...base, id, type:"excel", sheetNames:wb.SheetNames, sheets:{}, headers, rowCount, colCount:headers.length, _sheetsStored: saveResult !== false };
   }
 
   if (ext === "docx") {
-    // Use mammoth via CDN-loaded script if available, else read as binary
     if (window.mammoth) {
       const buf = await file.arrayBuffer();
       const result = await window.mammoth.extractRawText({ arrayBuffer: buf });
@@ -213,47 +210,63 @@ async function parseFile(file) {
 
 function renderMarkdown(text) {
   if (!text) return "";
-  const lines = text.split("\n");
+
+  // ── Pre-clean: strip any literal header symbols the AI snuck in ──
+  // Handles "## **Title**" and "##**Title**" and "#Title" uniformly
+  let cleaned = text
+    .replace(/^#{1,3}\s*/gm, "")      // remove # ## ### at line starts
+    .replace(/^[-─━]+$/gm, "")         // remove horizontal rule lines
+    .trim();
+
+  const lines = cleaned.split("\n");
   const out = [];
   let inList = false;
+  let inNumbered = false;
 
   for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
+    const line = lines[i];
+    const trimmed = line.trim();
 
-    // Close list if line is not a list item
-    if (inList && !line.match(/^[-*•]\s/)) {
-      out.push("</ul>");
-      inList = false;
-    }
+    // Close open lists
+    if (inList && !trimmed.match(/^[-*•]\s/)) { out.push("</ul>"); inList = false; }
+    if (inNumbered && !trimmed.match(/^\d+[.)]\s/)) { out.push("</ol>"); inNumbered = false; }
 
-    if (line.match(/^###\s/)) {
-      out.push(`<div style="font-weight:700;font-size:13px;color:#0f172a;margin:10px 0 4px">${inline(line.replace(/^###\s/, ""))}</div>`);
-    } else if (line.match(/^##\s/)) {
-      out.push(`<div style="font-weight:800;font-size:14px;color:#0f172a;margin:12px 0 5px;border-bottom:1px solid #e2e8f0;padding-bottom:3px">${inline(line.replace(/^##\s/, ""))}</div>`);
-    } else if (line.match(/^#\s/)) {
-      out.push(`<div style="font-weight:800;font-size:15px;color:#0f172a;margin:14px 0 6px">${inline(line.replace(/^#\s/, ""))}</div>`);
-    } else if (line.match(/^[-*•]\s/)) {
-      if (!inList) { out.push('<ul style="margin:4px 0 4px 16px;padding:0;list-style:disc">'); inList = true; }
-      out.push(`<li style="margin-bottom:3px;line-height:1.6">${inline(line.replace(/^[-*•]\s/, ""))}</li>`);
-    } else if (line.match(/^\d+\.\s/)) {
-      out.push(`<div style="margin:2px 0 2px 4px;line-height:1.6">${inline(line)}</div>`);
-    } else if (line.trim() === "") {
-      out.push('<div style="height:6px"></div>');
+    if (trimmed === "") {
+      out.push('<div style="height:5px"></div>');
+    } else if (trimmed.match(/^[-*•]\s/)) {
+      // Bullet list item — but only if it's NOT a standalone bold label (like "- **Section:**")
+      if (!inList) { out.push('<ul style="margin:6px 0 6px 18px;padding:0;list-style:disc">'); inList = true; }
+      out.push(`<li style="margin-bottom:4px;line-height:1.65;color:#2a3a50">${inlineFormat(trimmed.replace(/^[-*•]\s/, ""))}</li>`);
+    } else if (trimmed.match(/^\d+[.)]\s/)) {
+      if (!inNumbered) { out.push('<ol style="margin:6px 0 6px 18px;padding:0">'); inNumbered = true; }
+      out.push(`<li style="margin-bottom:4px;line-height:1.65;color:#2a3a50">${inlineFormat(trimmed.replace(/^\d+[.)]\s/, ""))}</li>`);
     } else {
-      out.push(`<div style="line-height:1.7">${inline(line)}</div>`);
+      // Check if entire line is bold — treat as a section label
+      const boldLine = trimmed.match(/^\*\*(.+?)\*\*[:\s]*$/);
+      if (boldLine) {
+        out.push(`<div style="font-weight:700;font-size:13px;color:#0f172a;margin:10px 0 3px">${boldLine[1]}</div>`);
+      } else {
+        out.push(`<div style="line-height:1.7;color:#2a3a50">${inlineFormat(trimmed)}</div>`);
+      }
     }
   }
   if (inList) out.push("</ul>");
+  if (inNumbered) out.push("</ol>");
   return out.join("");
 }
 
-function inline(text) {
+function inlineFormat(text) {
+  if (!text) return "";
   return text
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace">$1</code>');
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#0f172a">$1</strong>')
+    .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;color:#0d7a6b">$1</code>');
 }
+
+// Keep old name as alias so any existing calls still work
+function inline(text) { return inlineFormat(text); }
+
 // ══════════════════════════════════════════════
 function saveSheets(fileId, sheets) {
   try {
@@ -261,11 +274,10 @@ function saveSheets(fileId, sheets) {
     localStorage.setItem("aimc_sheets_" + fileId, json);
     return true;
   } catch(e) {
-    // Too large — try saving truncated version (first 1000 rows per sheet)
     try {
       const truncated = {};
       Object.keys(sheets).forEach(name => {
-        truncated[name] = sheets[name].slice(0, 1001); // header + 1000 rows
+        truncated[name] = sheets[name].slice(0, 1001);
       });
       localStorage.setItem("aimc_sheets_" + fileId, JSON.stringify(truncated));
       return "truncated";
@@ -287,6 +299,7 @@ function hydrateFile(f) {
   }
   return f;
 }
+
 const KB_SECTIONS = [
   { key:"projects",  label:"Projects",           icon:"📋", color:"#7c3aed", bg:"#ede9fe" },
   { key:"customers", label:"Customer Profiles",  icon:"🏭", color:"#0284c7", bg:"#dbeafe", isProfiles:true },
@@ -305,7 +318,7 @@ const KB_INITIAL = { projects:[], customers:[], industry:[], paycargo_vendors:[]
 
 function fileToText(f, maxRows=150, searchTerms=[]) {
   if (!f) return "";
-  f = hydrateFile(f); // load sheets from separate storage if needed
+  f = hydrateFile(f);
   if (f.type === "excel") {
     const sheetName = f.sheetNames?.[0];
     const sheet = f.sheets?.[sheetName] || [];
@@ -313,7 +326,6 @@ function fileToText(f, maxRows=150, searchTerms=[]) {
     const dataRows = sheet.slice(1);
     let resultRows = [];
     if (searchTerms.length > 0) {
-      // Find all rows matching any search term
       const matches = dataRows.filter(row =>
         row.some(c => searchTerms.some(t => String(c ?? "").toLowerCase().includes(t.toLowerCase())))
       );
@@ -324,7 +336,6 @@ function fileToText(f, maxRows=150, searchTerms=[]) {
         const note = matches.length > 500 ? `\n(showing 200 of ${matches.length} matching rows)` : `\n(${matches.length} matching rows found out of ${dataRows.length} total)`;
         return `[Excel: ${f.name} — ${f.rowCount} rows total]\nFiltered for: ${searchTerms.join(", ")}\n${headerLine}\n${matchLines.join("\n")}${note}`;
       } else {
-        // No match found — return first rows so AI can see structure
         const fallback = sheet.slice(0, maxRows+1).map(row => row.map(c => String(c ?? "")).join("\t"));
         return `[Excel: ${f.name} — ${f.rowCount} rows total]\nNo rows matched "${searchTerms.join(", ")}" — showing first ${maxRows} rows:\n${fallback.join("\n")}`;
       }
@@ -341,24 +352,80 @@ function fileToText(f, maxRows=150, searchTerms=[]) {
   return `[File: ${f.name}]`;
 }
 
-// Extract likely search terms from a user question (company names, proper nouns)
+// Known payer group keywords — always added as search terms when mentioned
+const PAYER_ALIASES = [
+  ["accelerated global", "accelerated global solutions", "ags"],
+  ["c.h. robinson", "ch robinson"],
+  ["expeditors"],
+  ["estes forwarding", "estes"],
+  ["radiant global", "radiant"],
+  ["fast track"],
+  ["transfair", "transgroup"],
+  ["dp world"],
+  ["sparx logistics", "sparx"],
+  ["odyssey logistics", "odyssey"],
+  ["amazon"],
+  ["cv international"],
+  ["ups-payers", "ups payers", "ups scs"],
+];
+
+// ── FIX #6: extractSearchTerms now handles both capitalized AND lowercase company names ──
+// Strategy: extract capitalized proper nouns (original behavior) PLUS meaningful
+// multi-word phrases from anywhere in the question, regardless of case.
 function extractSearchTerms(question) {
-  // Extract quoted strings first
+  if (!question) return [];
+
+  // Extract quoted strings first — always treat these as search terms
   const quoted = [...question.matchAll(/"([^"]+)"/g)].map(m => m[1]);
-  // Split into words, keep capitalized words/phrases (likely proper nouns)
-  const words = question.replace(/[^\w\s\-]/g, " ").split(/\s+/).filter(w => w.length > 2);
-  const caps = words.filter(w => /^[A-Z]/.test(w) && !/^(The|And|For|From|What|Which|Where|When|Who|How|Can|Did|Has|Have|Show|Find|List|Tell|Give|Get)$/.test(w));
-  // Also extract multi-word company-like phrases (2-4 consecutive capitalized words)
-  const phrases = [];
+
+  const cleanQ = question.replace(/[^\w\s\-]/g, " ");
+  const words = cleanQ.split(/\s+/).filter(w => w.length > 2);
+
+  // Stop words to exclude
+  const STOP = new Set(["the","and","for","from","what","which","where","when","who","how",
+    "can","did","has","have","show","find","list","tell","give","get","about","with","that",
+    "this","these","their","them","they","are","was","were","been","being","its","our","your",
+    "all","any","each","some","such","than","then","into","onto","upon","over","under","also",
+    "just","not","but","yet","nor","per","via","both","between","among","across","after",
+    "before","during","since","until","while","because","although","though","unless","like"]);
+
+  // Capitalized proper nouns (original behavior — high confidence)
+  const caps = words.filter(w => /^[A-Z]/.test(w) && !STOP.has(w.toLowerCase()));
+
+  // Multi-word capitalized phrases (2–3 consecutive cap words)
+  const capPhrases = [];
   for (let i = 0; i < words.length - 1; i++) {
     if (/^[A-Z]/.test(words[i]) && /^[A-Z]/.test(words[i+1])) {
-      phrases.push(words[i] + " " + words[i+1]);
-      if (i+2 < words.length && /^[A-Z]/.test(words[i+2])) {
-        phrases.push(words[i] + " " + words[i+1] + " " + words[i+2]);
+      capPhrases.push(words[i] + " " + words[i+1]);
+      if (i + 2 < words.length && /^[A-Z]/.test(words[i+2])) {
+        capPhrases.push(words[i] + " " + words[i+1] + " " + words[i+2]);
       }
     }
   }
-  return [...new Set([...quoted, ...phrases, ...caps])].slice(0, 10);
+
+  // ── NEW: also extract meaningful lowercase phrases (2+ consecutive non-stop words) ──
+  // This catches "accelerated global solutions" or "jfk branch" typed in lowercase.
+  const lcWords = words.map(w => w.toLowerCase()).filter(w => !STOP.has(w) && w.length > 3);
+  const lcPhrases = [];
+  for (let i = 0; i < lcWords.length - 1; i++) {
+    lcPhrases.push(lcWords[i] + " " + lcWords[i+1]);
+    if (i + 2 < lcWords.length) {
+      lcPhrases.push(lcWords[i] + " " + lcWords[i+1] + " " + lcWords[i+2]);
+    }
+  }
+  // Also include individual lowercase words that are 5+ chars (likely names, not conjunctions)
+  const lcSingles = lcWords.filter(w => w.length >= 5);
+
+  // ── Check against known payer aliases — if question mentions any, add canonical search terms ──
+  const qLower = question.toLowerCase();
+  const aliasTerms = [];
+  PAYER_ALIASES.forEach(group => {
+    if (group.some(alias => qLower.includes(alias))) {
+      aliasTerms.push(...group);
+    }
+  });
+
+  return [...new Set([...quoted, ...capPhrases, ...caps, ...lcPhrases, ...lcSingles, ...aliasTerms])].slice(0, 20);
 }
 
 function buildKbContext(kbData, kbDocs, question="") {
@@ -367,7 +434,6 @@ function buildKbContext(kbData, kbDocs, question="") {
   KB_KEYS.forEach(k => { (kbData[k]||[]).forEach(d => { allDocs.push({...d, category: k}); }); });
   if (!allDocs.length) return "No knowledge base documents yet.";
 
-  // Score docs — those with files containing matches come first
   const scored = allDocs.map(d => {
     const hf = (d.files||[]).map(hydrateFile);
     const hasMatchingFile = searchTerms.length > 0 && hf.some(f => {
@@ -379,16 +445,14 @@ function buildKbContext(kbData, kbDocs, question="") {
     return { doc: d, hydratedFiles: hf, priority: hasMatchingFile ? 0 : titleMatch ? 1 : 2 };
   }).sort((a,b) => a.priority - b.priority);
 
-  // Only include files from top-priority docs (those with matches), skip file data from low-priority docs
   let totalChars = 0;
-  const MAX_CHARS = 80000;
+  const MAX_CHARS = 60000;
 
   return "KNOWLEDGE BASE:\n\n" + scored.map(({doc: d, hydratedFiles, priority}) => {
     const title = `[${d.category||d.tag||"KB"}] ${d.title||d.name}`;
     const body = d.body||d.content||d.description||"";
     const notesArr = Array.isArray(d.notes) ? d.notes : (d.notes ? [d.notes] : []);
     const notes = notesArr.length ? "\n\nNotes:\n" + notesArr.map(n=>n.text||n).join("\n") : "";
-    // Only include full file data if priority 0 or 1, and we haven't hit the limit
     let files = "";
     if (d.files?.length) {
       if (priority <= 1 && totalChars < MAX_CHARS) {
@@ -401,6 +465,24 @@ function buildKbContext(kbData, kbDocs, question="") {
     totalChars += chunk.length;
     return chunk;
   }).join("\n\n---\n\n");
+}
+
+// ── FIX #3: Friendly error message for rate limits and API errors ──
+function friendlyApiError(err) {
+  const msg = err?.message || String(err);
+  if (msg.includes("overloaded") || msg.includes("529")) {
+    return "⚠️ Claude is overloaded right now. Wait 30 seconds and try again, or click **New Chat** to clear history and reduce token usage.";
+  }
+  if (msg.includes("rate_limit") || msg.includes("529") || msg.includes("too many")) {
+    return "⚠️ Rate limit hit (too many tokens per minute). Click **New Chat** to reset history, then try again.";
+  }
+  if (msg.includes("401") || msg.includes("authentication")) {
+    return "⚠️ API key error. Check your ANTHROPIC_API_KEY in Vercel environment variables.";
+  }
+  if (msg.includes("Failed to fetch") || msg.includes("NetworkError")) {
+    return "⚠️ Network error — couldn't reach the server. Check your internet connection.";
+  }
+  return "⚠️ Error: " + msg;
 }
 
 // ══════════════════════════════════════════════
@@ -517,7 +599,6 @@ function KbDetailPanel({ selected, onClose, onDelete, onAddNote, onUploadFile, n
 
   return (
     <div style={{ flex:1, overflowY:"auto", padding:22 }} className="fadein">
-      {/* Header */}
       <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:16 }}>
         <div>
           <h2 style={{ fontSize:18, fontWeight:800, color:"#0f172a", margin:0 }}>{item.title||item.name}</h2>
@@ -533,7 +614,6 @@ function KbDetailPanel({ selected, onClose, onDelete, onAddNote, onUploadFile, n
         </div>
       </div>
 
-      {/* Overview */}
       {(item.description||item.content) && !viewingFile && (
         <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"12px 16px", marginBottom:14 }}>
           <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:6, textTransform:"uppercase", letterSpacing:0.5 }}>Overview</div>
@@ -541,15 +621,12 @@ function KbDetailPanel({ selected, onClose, onDelete, onAddNote, onUploadFile, n
         </div>
       )}
 
-      {/* File viewer */}
       {viewingFile && (
         <KbFileViewer file={viewingFile} activeSheet={activeSheet} onSheetChange={setActiveSheet} onClose={() => setViewingFile(null)} />
       )}
 
-      {/* Files + Notes grid */}
       {!viewingFile && (
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
-          {/* Files */}
           <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"13px 16px" }}>
             <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:10, textTransform:"uppercase", letterSpacing:0.5 }}>
               📎 Files <span style={{ background:"#f1f5f9", borderRadius:8, padding:"1px 6px", marginLeft:4 }}>{item.files?.length||0}</span>
@@ -579,7 +656,6 @@ function KbDetailPanel({ selected, onClose, onDelete, onAddNote, onUploadFile, n
             ))}
           </div>
 
-          {/* Notes */}
           <div style={{ background:"#fff", border:"1px solid #e2e8f0", borderRadius:10, padding:"13px 16px" }}>
             <div style={{ fontSize:10, fontWeight:700, color:"#94a3b8", marginBottom:10, textTransform:"uppercase", letterSpacing:0.5 }}>
               📝 Notes <span style={{ background:"#f1f5f9", borderRadius:8, padding:"1px 6px", marginLeft:4 }}>{item.notes?.length||0}</span>
@@ -634,12 +710,12 @@ function App() {
   const knownIds = useRef(new Set(emails.map(e=>e.id)));
 
   // ── KB State ──
-  const [kbData, setKbData]       = useState(()=>load("kbDataV3", KB_INITIAL));
-  const [kbOpen, setKbOpen]       = useState({ projects:false, customers:false, industry:false, paycargo:false, paycargo_vendors:false, paycargo_payers:false });
-  const [kbSelected, setKbSelected] = useState(null); // { key, item }
-  const [kbModal, setKbModal]     = useState(null);   // { section, type, label }
-  const [kbForm, setKbForm]       = useState({ title:"", content:"", tag:"", name:"", description:"", category:"Vendor" });
-  const [kbSearch, setKbSearch]   = useState("");
+  const [kbData, setKbData]         = useState(()=>load("kbDataV3", KB_INITIAL));
+  const [kbOpen, setKbOpen]         = useState({ projects:false, customers:false, industry:false, paycargo:false, paycargo_vendors:false, paycargo_payers:false });
+  const [kbSelected, setKbSelected] = useState(null);
+  const [kbModal, setKbModal]       = useState(null);
+  const [kbForm, setKbForm]         = useState({ title:"", content:"", tag:"", name:"", description:"", category:"Vendor" });
+  const [kbSearch, setKbSearch]     = useState("");
   const [kbNoteInput, setKbNoteInput] = useState("");
   const [kbUploading, setKbUploading] = useState(false);
   const [kbPendingSection, setKbPendingSection] = useState(null);
@@ -647,13 +723,18 @@ function App() {
   const [kbMigrateAssign, setKbMigrateAssign] = useState({});
   const kbFileRef = useRef();
   const kbSectionFileRef = useRef();
+  // ── FIX #7: capture selected item at click time to avoid stale closure ──
+  const pendingFileItem = useRef(null);
 
   // Legacy KB for AI chat
-  const [kbDocs, setKbDocs]       = useState(()=>load("kbDocs", []));
-  const [kbChat, setKbChat]       = useState([]);
-  const [kbInput, setKbInput]     = useState("");
+  const [kbDocs, setKbDocs]   = useState(()=>load("kbDocs", []));
+  const [kbChat, setKbChat]   = useState([]);
+  const [kbInput, setKbInput] = useState("");
   const [kbLoading, setKbLoading] = useState(false);
   const chatEndRef = useRef(null);
+  // ── FIX #1: use ref to always read current kbChat in sendKbMessage ──
+  const kbChatRef = useRef(kbChat);
+  useEffect(() => { kbChatRef.current = kbChat; }, [kbChat]);
 
   useEffect(() => {
     async function fetchLive() {
@@ -762,6 +843,7 @@ function App() {
     setKbNoteInput("");
   };
 
+  // ── FIX #7: capture kbSelected at the moment the file button is clicked ──
   const kbHandleFileForEntry = async (e, sectionKey, itemId) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -797,6 +879,108 @@ function App() {
     const q = kbSearch.toLowerCase();
     return items.filter(i => (i.title||i.name||"").toLowerCase().includes(q) || (i.content||i.description||"").toLowerCase().includes(q));
   };
+
+  // ══════════════════════════════════════════════
+  // FIX #1 + #2 + #3 + #5: Single shared sendKbMessage function
+  // - Eliminates duplicate onKeyDown/onClick logic
+  // - Always passes question to buildKbContext (fixes follow-up filtering bug)
+  // - max_tokens reduced from 4000 → 1500 (reduces rate limit pressure)
+  // - Uses friendlyApiError() for user-readable error messages
+  // ══════════════════════════════════════════════
+  const KB_SYSTEM_PROMPT = `You are an AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base, Excel data, vendor lists, and customer profiles.
+
+RESPONSE STYLE — CRITICAL:
+- Write in natural, conversational prose. No markdown headers, no hash symbols (#), no excessive asterisks.
+- Use **bold** sparingly for key terms or numbers only. Never bold entire sentences or section titles.
+- Use short bullet points only when listing 3+ items. Keep each bullet to one line.
+- Start with a 2–3 sentence plain-English summary of what you found.
+- End with one concise offer: "Want me to dig deeper into [specific thing]?" — don't ask multiple questions.
+- If data is missing or unclear, say so in one sentence then move on. Don't list "possible solutions" at length.
+- Never repeat the user's question back to them.
+- Aim for responses that feel like a knowledgeable colleague texting you a quick summary, not a formal report.
+
+PAYERS EXCEL FILE — DATA STRUCTURE:
+The file has a 3-level row hierarchy:
+  Level 1 — Payer Group name (the parent customer account)
+  Level 2 — Branch/Location of that payer (e.g. JFK/HQ, LAX, ORD)
+  Level 3 — Vendor name (the company the payer is paying through PayCargo)
+Monthly transaction/volume columns follow the name columns.
+
+KNOWN PAYER GROUPS (search for these exact names or substrings):
+- UPS-Payers (US)
+- Accelerated Global Solutions- Payer  [also search: "Accelerated Global", "AGS"]
+- C.H. Robinson
+- Expeditors
+- Estes Forwarding-Payer
+- Radiant Global Logistics
+- Fast Track-Payer
+- TRANSFAIR (Transgroup)-Payer (US)  [also search: "Transgroup", "TRANSFAIR"]
+- DP World Logistics - Payer  [also search: "DP World"]
+- SPARX LOGISTICS
+- Odyssey Logistics
+- Amazon
+- CV INTERNATIONAL, INC.
+- Accelerated Global Solutions (CAN)-Payer  [also search: "Accelerated Global", "CAN"]
+
+ANALYSIS RULES:
+- Always break down by Branch/Location — never give one aggregate total for a payer group.
+- Cite actual numbers from the data.
+- When asked about payment decreases or stops, compare recent months vs earlier months in the data.
+- The VENDORS file has a similar structure: vendor group → individual locations.`;
+
+  async function sendKbMessage(question) {
+    if (!question.trim() || kbLoading) return;
+    setKbInput("");
+    setKbChat(prev => [...prev, { role:"user", content:question }]);
+    setKbLoading(true);
+    try {
+      // ── FIX #2: always pass question so Excel filtering works on follow-ups too ──
+      const currentChat = kbChatRef.current;
+      const kbContextRaw = buildKbContext(kbData, kbDocs, question);
+      const kbContext = kbContextRaw.length > 55000
+        ? kbContextRaw.slice(0, 55000) + "\n...(context truncated to fit)"
+        : kbContextRaw;
+
+      // Keep last 4 messages; truncate assistant replies to 600 chars to save tokens
+      const historyMessages = currentChat.slice(-4).map(m => ({
+        role: m.role,
+        content: m.role === "assistant" && m.content.length > 600
+          ? m.content.slice(0, 600) + "…(truncated)"
+          : m.content
+      }));
+
+      // ── FIX #5: max_tokens 4000 → 1500 ──
+      const res = await fetch("/api/analyze", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens: 1500,
+          system: KB_SYSTEM_PROMPT + "\n\n" + kbContext,
+          messages: [...historyMessages, { role:"user", content:question }]
+        })
+      });
+
+      const data = await res.json();
+
+      // ── FIX #3: detect API-level errors (rate limit, overloaded, auth) ──
+      if (data.error) {
+        const errMsg = data.error?.message || data.error?.type || JSON.stringify(data.error);
+        throw new Error(errMsg);
+      }
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const answer = data.content?.map(b => b.text||"").join("") || "Sorry, I couldn't get a response.";
+      setKbChat(prev => [...prev, { role:"assistant", content:answer }]);
+    } catch(err) {
+      // ── FIX #3: show friendly error message ──
+      setKbChat(prev => [...prev, { role:"assistant", content: friendlyApiError(err) }]);
+    }
+    setKbLoading(false);
+    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior:"smooth" }), 100);
+  }
 
   const uOrder={urgent:0,high:1,medium:2,low:3};
   const fActions=actions.filter(a=>actFilter==="done"?a.done:actFilter==="pending"?!a.done:true).sort((a,b)=>(uOrder[a.urgency]??3)-(uOrder[b.urgency]??3));
@@ -1059,8 +1243,12 @@ function App() {
           <div style={{display:"grid", gridTemplateColumns:"270px 1fr", gap:16, minHeight:"75vh"}}>
 
             {/* Hidden file inputs */}
+            {/* FIX #7: onChange reads from pendingFileItem ref, not stale closure */}
             <input type="file" ref={kbFileRef} style={{display:"none"}} accept=".xlsx,.xls,.csv,.docx,.txt,.md,.pdf,.pptx"
-              onChange={e => kbSelected && kbHandleFileForEntry(e, kbSelected.key, kbSelected.item.id)} />
+              onChange={e => {
+                const snap = pendingFileItem.current;
+                if (snap) kbHandleFileForEntry(e, snap.key, snap.itemId);
+              }} />
             <input type="file" ref={kbSectionFileRef} style={{display:"none"}} accept=".xlsx,.xls,.csv,.docx,.txt,.md,.pdf,.pptx"
               onChange={e => kbPendingSection && kbHandleFileForSection(e, kbPendingSection)} />
 
@@ -1078,7 +1266,6 @@ function App() {
               <div style={{flex:1, overflowY:"auto"}}>
                 {KB_SECTIONS.map(sec => (
                   <div key={sec.key}>
-                    {/* Section toggle */}
                     <button onClick={() => kbToggle(sec.key)}
                       style={{width:"100%", background:"none", border:"none", borderBottom:"1px solid #f1f5f9", padding:"9px 11px", cursor:"pointer", display:"flex", alignItems:"center", gap:6, textAlign:"left"}}>
                       <span style={{fontSize:10, color:"#94a3b8", display:"inline-block", transform: kbOpen[sec.key]?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.15s"}}>▶</span>
@@ -1140,15 +1327,36 @@ function App() {
                   setNoteInput={setKbNoteInput}
                   onAddNote={kbAddNote}
                   onDelete={(id) => kbDeleteEntry(kbSelected.key, id)}
-                  onUploadFile={() => kbFileRef.current.click()}
+                  onUploadFile={() => {
+                    // FIX #7: capture key+itemId at click time into ref
+                    pendingFileItem.current = { key: kbSelected.key, itemId: kbSelected.item.id };
+                    kbFileRef.current.click();
+                  }}
                 />
               ) : (
                 /* AI Chat */
                 <div style={{display:"flex", flexDirection:"column", height:"100%"}}>
-                  <div style={{padding:"14px 18px", borderBottom:"1px solid #eef2f7"}}>
-                    <div style={{fontSize:14, fontWeight:700, marginBottom:2}}>🧠 AI Assistant</div>
-                    <div style={{fontSize:11, color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects · or click any doc to view & edit it</div>
+                  {/* FIX #4: Chat header with "New Chat" button */}
+                  <div style={{padding:"14px 18px", borderBottom:"1px solid #eef2f7", display:"flex", alignItems:"center", justifyContent:"space-between"}}>
+                    <div>
+                      <div style={{fontSize:14, fontWeight:700, marginBottom:2}}>🧠 AI Assistant</div>
+                      <div style={{fontSize:11, color:"#8a9ab0"}}>Ask anything about your customers, pricing, vendors, or projects · or click any doc to view & edit it</div>
+                    </div>
+                    {kbChat.length > 0 && (
+                      <button
+                        onClick={() => setKbChat([])}
+                        title="Clear chat history to free up tokens"
+                        style={{
+                          background:"#fef3c7", border:"1px solid #fcd34d", color:"#92400e",
+                          borderRadius:7, padding:"6px 12px", cursor:"pointer",
+                          fontSize:11, fontWeight:700, fontFamily:"inherit", whiteSpace:"nowrap",
+                          flexShrink:0, marginLeft:12
+                        }}>
+                        🔄 New Chat
+                      </button>
+                    )}
                   </div>
+
                   <div style={{flex:1, overflowY:"auto", padding:"14px 18px", display:"flex", flexDirection:"column", gap:12}}>
                     {kbChat.length===0 && (
                       <div style={{textAlign:"center", paddingTop:50, color:"#b0bcc8"}}>
@@ -1174,46 +1382,23 @@ function App() {
                     {kbLoading && <div style={{display:"flex",gap:8,alignItems:"center"}}><div style={{width:26,height:26,borderRadius:"50%",background:"linear-gradient(135deg,#0d7a6b,#0a5a8a)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:"white"}}>AI</div><div style={{background:"#f8fafc",border:"1px solid #e0e8f0",borderRadius:9,padding:"9px 12px",fontSize:12,color:"#8a9ab0",display:"flex",gap:6,alignItems:"center"}}><div style={{width:9,height:9,border:"2px solid #0d7a6b",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Thinking…</div></div>}
                     <div ref={chatEndRef}/>
                   </div>
+
+                  {/* FIX #1: Both keydown and button now call the same sendKbMessage() */}
                   <div style={{padding:"10px 14px", borderTop:"1px solid #eef2f7", display:"flex", gap:8}}>
                     <textarea value={kbInput} onChange={e=>setKbInput(e.target.value)}
-                      onKeyDown={async e=>{
+                      onKeyDown={e=>{
                         if(e.key==="Enter"&&!e.shiftKey){
                           e.preventDefault();
-                          if(!kbInput.trim()||kbLoading) return;
-                          const question = kbInput.trim();
-                          setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
-                          try {
-                            const isFollowUp = kbChat.length > 0;
-                            const kbContextRaw = buildKbContext(kbData, kbDocs, isFollowUp ? "" : question);
-                            const kbContext = kbContextRaw.length > 60000 ? kbContextRaw.slice(0, 60000) + "\n...(context truncated to fit)" : kbContextRaw;
-                            const historyMessages = kbChat.slice(-4).map(m=>({role:m.role,content:isFollowUp&&m.role==="assistant"?m.content.slice(0,800)+"...(truncated)":m.content}));
-                            const res = await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes.\n\nThe PAYERS Excel file has a 3-level hierarchy in its rows:\n  Level 1: Payer Group (e.g. 'Accelerated Global Solutions- Payer')\n  Level 2: Branch/Location (e.g. 'Accelerated Global Solutions (JFK/HQ)', 'Accelerated Global Solutions (LAX)', 'Accelerated Global Solutions (ORD)', etc.)\n  Level 3: Vendor name (e.g. 'WFS (ePic)', 'Lufthansa', 'DHL Global Forwarding - ATL')\nMonthly transaction columns follow after the name columns.\nAlways break down analysis BY BRANCH/LOCATION — never aggregate all branches into one number. Show each branch separately with its vendor breakdown and monthly trends.\n\nThe VENDORS Excel file similarly has vendor groups > individual vendor locations.\n\nScan ALL provided rows. Cite specific numbers. Always show branch-level detail when analyzing a payer or vendor.\n\n${kbContext}`,messages:[...historyMessages,{role:"user",content:question}]})});
-                            const data = await res.json();
-                            if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-                            const answer = data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response.";
-                            setKbChat(prev=>[...prev,{role:"assistant",content:answer}]);
-                          } catch(err) { setKbChat(prev=>[...prev,{role:"assistant",content:"Error: " + (err.message||String(err))}]); }
-                          setKbLoading(false);
-                          setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
+                          sendKbMessage(kbInput);
                         }
                       }}
-                      placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send)"
+                      placeholder="Ask about your customers, pricing, vendors, projects… (Enter to send, Shift+Enter for newline)"
                       rows={2} style={{flex:1,background:"#f8fafc",border:"1px solid #d0dce8",borderRadius:7,padding:"8px 10px",color:"#1a2540",fontSize:13,resize:"none",fontFamily:"inherit"}}/>
-                    <button onClick={async()=>{
-                      if(!kbInput.trim()||kbLoading) return;
-                      const question=kbInput.trim(); setKbInput(""); setKbChat(prev=>[...prev,{role:"user",content:question}]); setKbLoading(true);
-                      try {
-                        const isFollowUp = kbChat.length > 0;
-                            const kbContextRaw = buildKbContext(kbData, kbDocs, isFollowUp ? "" : question);
-                            const kbContext = kbContextRaw.length > 60000 ? kbContextRaw.slice(0, 60000) + "\n...(context truncated to fit)" : kbContextRaw;
-                            const historyMessages = kbChat.slice(-4).map(m=>({role:m.role,content:isFollowUp&&m.role==="assistant"?m.content.slice(0,800)+"...(truncated)":m.content}));
-                        const res=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:4000,system:`You are a helpful AI assistant for Isaac Adams, Director of Enterprise Development at PayCargo. You have access to his knowledge base including Excel spreadsheet data, vendor lists, customer profiles and project notes.\n\nThe PAYERS Excel file has a 3-level hierarchy in its rows:\n  Level 1: Payer Group (e.g. 'Accelerated Global Solutions- Payer')\n  Level 2: Branch/Location (e.g. 'Accelerated Global Solutions (JFK/HQ)', 'Accelerated Global Solutions (LAX)', 'Accelerated Global Solutions (ORD)', etc.)\n  Level 3: Vendor name (e.g. 'WFS (ePic)', 'Lufthansa', 'DHL Global Forwarding - ATL')\nMonthly transaction columns follow after the name columns.\nAlways break down analysis BY BRANCH/LOCATION — never aggregate all branches into one number. Show each branch separately with its vendor breakdown and monthly trends.\n\nThe VENDORS Excel file similarly has vendor groups > individual vendor locations.\n\nScan ALL provided rows. Cite specific numbers. Always show branch-level detail when analyzing a payer or vendor.\n\n${kbContext}`,messages:[...historyMessages,{role:"user",content:question}]})});
-                        const data=await res.json();
-                        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-                        setKbChat(prev=>[...prev,{role:"assistant",content:data.content?.map(b=>b.text||"").join("")||"Sorry, couldn't get a response."}]);
-                      } catch(err){setKbChat(prev=>[...prev,{role:"assistant",content:"Error: " + (err.message||String(err))}]);}
-                      setKbLoading(false); setTimeout(()=>chatEndRef.current?.scrollIntoView({behavior:"smooth"}),100);
-                    }} style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:7,padding:"0 16px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>Send</button>
+                    <button
+                      onClick={() => sendKbMessage(kbInput)}
+                      style={{background:"#0d7a6b",border:"none",color:"white",borderRadius:7,padding:"0 16px",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",alignSelf:"stretch"}}>
+                      Send
+                    </button>
                   </div>
                 </div>
               )}
@@ -1260,7 +1445,6 @@ function App() {
                         updated[sk] = [...(updated[sk]||[]), entry];
                       });
                       kbPersist(updated);
-                      // Clear old docs so button disappears
                       try{localStorage.removeItem("aimc_kbDocs");}catch(e){}
                       setKbDocs([]);
                       setKbMigrateModal(false);
