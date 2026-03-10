@@ -1,8 +1,5 @@
 export const config = { runtime: 'edge' };
 
-const SUPABASE_URL = 'https://cafgtjvajulozcvocnurj.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZmd0anZhanVsb3p2b2NudXJqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzA4MjIzMCwiZXhwIjoyMDg4NjU4MjMwfQ.rqB-FdyDt_G5MBW-QfWuMB-fxTHlP-b5Y1CmXJvP8cA';
-
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -14,9 +11,18 @@ export default async function handler(req) {
     });
   }
 
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_KEY = process.env.SUPABASE_KEY;
+
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return new Response(JSON.stringify({ error: 'Missing env vars' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
   try {
     const url = new URL(req.url);
-    // path after /api/db/ is the Supabase REST path e.g. /rest/v1/accounts?select=*
     const supabasePath = url.searchParams.get('path') || '/rest/v1/';
     const queryString = url.searchParams.get('query') || '';
     const targetUrl = `${SUPABASE_URL}${supabasePath}${queryString ? '?' + queryString : ''}`;
@@ -25,17 +31,13 @@ export default async function handler(req) {
       'apikey': SUPABASE_KEY,
       'Authorization': `Bearer ${SUPABASE_KEY}`,
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     };
 
-    // Forward Prefer header if present (needed for upsert/insert returns)
     const prefer = req.headers.get('Prefer');
     if (prefer) headers['Prefer'] = prefer;
 
-    const fetchOptions = {
-      method: req.method,
-      headers,
-    };
-
+    const fetchOptions = { method: req.method, headers };
     if (req.method !== 'GET' && req.method !== 'DELETE') {
       fetchOptions.body = await req.text();
     }
@@ -53,10 +55,7 @@ export default async function handler(req) {
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      }
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
 }
