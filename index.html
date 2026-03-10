@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>AI Mail Command</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<!-- Supabase via Vercel proxy -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -301,11 +301,74 @@ const APP_PASSWORD = 'AIMC2026';
 // ══════════════════════════════════════════════════════
 // SUPABASE INIT — direct browser client
 // ══════════════════════════════════════════════════════
-const { createClient } = supabase;
-const db = createClient(
-  'https://cafgtjvajulozcvocnurj.supabase.co',
-  'sb_publishable_W4RkieJnzZ9KKJp8sIC86Q_fG-dbNBY'
-);
+// Proxy-based DB client — all requests routed through Vercel edge function
+const db = (() => {
+  const BASE = '/api/db';
+
+  function buildUrl(table, query = '') {
+    const path = `/rest/v1/${table}`;
+    return `${BASE}?path=${encodeURIComponent(path)}${query ? '&query=' + encodeURIComponent(query) : ''}`;
+  }
+
+  function qb(table) {
+    let _query = '';
+    let _method = 'GET';
+    let _body = null;
+    let _prefer = null;
+    let _single = false;
+
+    const chain = {
+      select(cols = '*') { _query += (_query ? '&' : '') + `select=${encodeURIComponent(cols)}`; return chain; },
+      eq(col, val) { _query += (_query ? '&' : '') + `${col}=eq.${encodeURIComponent(val)}`; return chain; },
+      neq(col, val) { _query += (_query ? '&' : '') + `${col}=neq.${encodeURIComponent(val)}`; return chain; },
+      order(col, opts = {}) {
+        const dir = opts.ascending === false ? 'desc' : 'asc';
+        _query += (_query ? '&' : '') + `order=${col}.${dir}`;
+        return chain;
+      },
+      limit(n) { _query += (_query ? '&' : '') + `limit=${n}`; return chain; },
+      single() { _single = true; _prefer = 'return=representation'; return chain; },
+      insert(data) {
+        _method = 'POST'; _body = JSON.stringify(data);
+        _prefer = 'return=representation';
+        return chain;
+      },
+      update(data) {
+        _method = 'PATCH'; _body = JSON.stringify(data);
+        _prefer = 'return=representation';
+        return chain;
+      },
+      upsert(data) {
+        _method = 'POST'; _body = JSON.stringify(data);
+        _prefer = 'resolution=merge-duplicates,return=representation';
+        return chain;
+      },
+      delete() { _method = 'DELETE'; return chain; },
+      async then(resolve, reject) {
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (_prefer) headers['Prefer'] = _prefer;
+          const res = await fetch(buildUrl(table, _query), {
+            method: _method, headers,
+            body: _body || undefined
+          });
+          const text = await res.text();
+          const parsed = text ? JSON.parse(text) : null;
+          if (!res.ok) return resolve({ data: null, error: parsed });
+          const data = _single ? (Array.isArray(parsed) ? parsed[0] : parsed) : parsed;
+          resolve({ data: data || (_method === 'GET' ? [] : data), error: null });
+        } catch(e) { resolve({ data: null, error: { message: e.message } }); }
+      }
+    };
+    // allow .select() chaining after insert/update
+    chain.from = () => chain;
+    return chain;
+  }
+
+  return {
+    from: (table) => qb(table),
+  };
+})();
 
 // ══════════════════════════════════════════════════════
 // STATE
