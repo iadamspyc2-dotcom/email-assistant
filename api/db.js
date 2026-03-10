@@ -1,32 +1,25 @@
-// v3
-export const config = { runtime: 'edge' };
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
 
-export default async function handler(req) {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PATCH,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, Prefer',
-      }
-    });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
+  // Debug: confirm env vars are loading
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return new Response(JSON.stringify({ error: 'Missing env vars' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    return res.status(500).json({ 
+      error: 'Missing env vars',
+      hasUrl: !!SUPABASE_URL,
+      hasKey: !!SUPABASE_KEY
     });
   }
 
   try {
-    const url = new URL(req.url);
-    const supabasePath = url.searchParams.get('path') || '/rest/v1/';
-    const queryString = url.searchParams.get('query') || '';
-    const targetUrl = `${SUPABASE_URL}${supabasePath}${queryString ? '?' + queryString : ''}`;
+    const { path = '/rest/v1/', query = '' } = req.query;
+    const targetUrl = `${SUPABASE_URL}${path}${query ? '?' + query : ''}`;
 
     const headers = {
       'apikey': SUPABASE_KEY,
@@ -35,28 +28,18 @@ export default async function handler(req) {
       'Accept': 'application/json',
     };
 
-    const prefer = req.headers.get('Prefer');
-    if (prefer) headers['Prefer'] = prefer;
+    if (req.headers['prefer']) headers['Prefer'] = req.headers['prefer'];
 
     const fetchOptions = { method: req.method, headers };
     if (req.method !== 'GET' && req.method !== 'DELETE') {
-      fetchOptions.body = await req.text();
+      fetchOptions.body = JSON.stringify(req.body);
     }
 
     const response = await fetch(targetUrl, fetchOptions);
     const text = await response.text();
-
-    return new Response(text, {
-      status: response.status,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      }
-    });
+    
+    res.status(response.status).send(text);
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    res.status(500).json({ error: err.message });
   }
 }
