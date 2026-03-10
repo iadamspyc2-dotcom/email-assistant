@@ -2,44 +2,35 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
-
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-  // Debug: confirm env vars are loading
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return res.status(500).json({ 
-      error: 'Missing env vars',
-      hasUrl: !!SUPABASE_URL,
-      hasKey: !!SUPABASE_KEY
-    });
-  }
+  const SUPABASE_URL = 'https://cafgtjvajulozcvocnurj.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZmd0anZhanVsb3p2b2NudXJqIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzA4MjIzMCwiZXhwIjoyMDg4NjU4MjMwfQ.rqB-FdyDt_G5MBW-QfWuMB-fxTHlP-b5Y1CmXJvP8cA';
 
   try {
     const { path = '/rest/v1/', query = '' } = req.query;
     const targetUrl = `${SUPABASE_URL}${path}${query ? '?' + query : ''}`;
 
-    const headers = {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
+    const response = await fetch(targetUrl, {
+      method: req.method,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(req.headers['prefer'] ? { 'Prefer': req.headers['prefer'] } : {}),
+      },
+      ...(req.method !== 'GET' && req.method !== 'DELETE' ? { body: JSON.stringify(req.body) } : {}),
+    });
 
-    if (req.headers['prefer']) headers['Prefer'] = req.headers['prefer'];
-
-    const fetchOptions = { method: req.method, headers };
-    if (req.method !== 'GET' && req.method !== 'DELETE') {
-      fetchOptions.body = JSON.stringify(req.body);
-    }
-
-    const response = await fetch(targetUrl, fetchOptions);
     const text = await response.text();
-    
-    res.status(response.status).send(text);
+    // Return full debug info
+    res.status(200).json({
+      supabaseStatus: response.status,
+      targetUrl,
+      body: text,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message, stack: err.stack });
   }
 }
