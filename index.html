@@ -25,12 +25,9 @@ body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(-
 button{font-family:inherit;cursor:pointer;border:none;outline:none}
 input,textarea,select{font-family:inherit;outline:none}
 a{text-decoration:none;color:inherit}
-/* ── SCROLLBAR ── */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:99px}
-
-/* ── LOGIN ── */
 #login-screen{position:fixed;inset:0;background:var(--sb);display:flex;align-items:center;justify-content:center;z-index:999}
 .login-card{background:var(--sb2);border:1px solid var(--sb3);border-radius:16px;padding:48px 40px;width:100%;max-width:400px;text-align:center}
 .login-logo{width:48px;height:48px;background:var(--accent);border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:22px}
@@ -42,10 +39,7 @@ a{text-decoration:none;color:inherit}
 .login-btn{width:100%;background:var(--accent);color:#fff;border-radius:8px;padding:13px;font-size:15px;font-weight:600;transition:.15s;margin-top:4px}
 .login-btn:hover{background:var(--accent2)}
 .login-err{color:#f85149;font-size:13px;margin-top:10px}
-
-/* ── LAYOUT ── */
 #app-shell{display:flex;height:100vh;overflow:hidden}
-/* ── SIDEBAR ── */
 #sidebar{width:var(--sidebar-w);background:var(--sb);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
 .sb-header{padding:20px 16px 12px;border-bottom:1px solid var(--sb3)}
 .sb-logo{display:flex;align-items:center;gap:10px}
@@ -66,19 +60,13 @@ a{text-decoration:none;color:inherit}
 .sb-user-info{flex:1;min-width:0}
 .sb-user-name{color:#e6edf3;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sb-user-role{color:#8b949e;font-size:10px}
-
-/* ── MAIN ── */
 #main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .main-header{background:#fff;border-bottom:1px solid var(--border);padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 .main-header h1{font-size:17px;font-weight:700;color:var(--text)}
 .main-header-right{display:flex;align-items:center;gap:10px}
 .main-content{flex:1;overflow-y:auto;padding:24px 28px}
-
-/* ── CARDS ── */
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
 .card-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px}
-
-/* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;transition:.15s;cursor:pointer}
 .btn-primary{background:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2)}
@@ -89,16 +77,12 @@ a{text-decoration:none;color:inherit}
 .btn-sm{padding:5px 11px;font-size:12px}
 .btn-icon{width:32px;height:32px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:14px;background:var(--bg);border:1px solid var(--border2);transition:.15s;cursor:pointer;color:var(--text)}
 .btn-icon:hover{background:var(--border)}
-
-/* ── INPUTS ── */
 .input{width:100%;border:1px solid var(--border2);border-radius:7px;padding:9px 12px;font-size:14px;color:var(--text);background:#fff;transition:.15s}
 .input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(16,185,129,.1)}
 .input::placeholder{color:var(--muted2)}
 .label{font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px;display:block}
 .form-group{margin-bottom:14px}
 textarea.input{resize:vertical;min-height:80px}
-
-/* ── STATS GRID ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
 .stat-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow)}
 .stat-label{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
@@ -107,8 +91,6 @@ textarea.input{resize:vertical;min-height:80px}
 .stat-green .stat-value{color:var(--accent)}
 .stat-red .stat-value{color:var(--danger)}
 .stat-yellow .stat-value{color:var(--warn)}
-
-/* ── ACCOUNT CARDS ── */
 .accounts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .account-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);cursor:pointer;transition:.15s;position:relative;overflow:hidden}
 .account-card:hover{box-shadow:var(--shadow2);border-color:var(--accent);transform:translateY(-1px)}
@@ -126,8 +108,6 @@ textarea.input{resize:vertical;min-height:80px}
 .health-green{background:var(--accent)}
 .health-red{background:var(--danger)}
 .health-yellow{background:var(--warn)}
-
-/* ── ACCOUNT DETAIL ── */
 .detail-header{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;box-shadow:var(--shadow)}
 .detail-header-top{display:flex;align-items:center;gap:16px;margin-bottom:16px}
 .detail-avatar{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--info));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0}
@@ -137,10 +117,6 @@ textarea.input{resize:vertical;min-height:80px}
 .tab{padding:9px 16px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:.15s;white-space:nowrap}
 .tab:hover{color:var(--text)}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-content{display:none}
-.tab-content.active{display:block}
-
-/* ── CHAT ── */
 .chat-container{display:flex;flex-direction:column;height:calc(100vh - 60px - 48px - 120px);min-height:300px}
 .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
 .chat-msg{display:flex;gap:10px;max-width:100%}
@@ -158,43 +134,29 @@ textarea.input{resize:vertical;min-height:80px}
 .chat-send-btn{width:36px;height:36px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:.15s}
 .chat-send-btn:hover{background:var(--accent2)}
 .chat-send-btn:disabled{background:var(--muted2);cursor:not-allowed}
-.chat-tools{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
-.chat-tool-btn{display:flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;background:var(--bg);border:1px solid var(--border2);color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
-.chat-tool-btn:hover{background:var(--border);color:var(--text)}
-.quick-queries{display:flex;gap:6px;flex-wrap:wrap;padding:10px 0 4px}
 .quick-q{padding:5px 12px;border-radius:99px;font-size:11px;font-weight:600;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);color:var(--accent);cursor:pointer;transition:.15s;white-space:nowrap}
 .quick-q:hover{background:rgba(16,185,129,.15)}
 .tooltip-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);border-radius:99px;padding:3px 10px;font-size:11px;color:var(--accent);font-weight:600;margin-bottom:8px}
-
-/* ── CONTACTS ── */
 .contact-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s;margin-bottom:8px}
 .contact-card:hover{border-color:var(--accent);box-shadow:var(--shadow)}
 .contact-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--info),#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0}
 .contact-name{font-size:14px;font-weight:700;color:var(--text)}
 .contact-title{font-size:12px;color:var(--muted)}
 .contact-email{font-size:11px;color:var(--info);margin-top:2px}
-
-/* ── FILES ── */
 .file-item{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer;transition:.15s}
 .file-item:hover{border-color:var(--accent)}
 .file-icon{width:36px;height:36px;border-radius:8px;background:var(--green-bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
 .file-name{font-size:13px;font-weight:600;color:var(--text)}
 .file-meta{font-size:11px;color:var(--muted);margin-top:1px}
-
-/* ── NOTES ── */
 .note-item{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px}
 .note-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .note-type{font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--bg);color:var(--muted);text-transform:uppercase}
 .note-date{font-size:11px;color:var(--muted2)}
 .note-content{font-size:13px;color:var(--text);line-height:1.6}
-
-/* ── ALERTS ── */
 .alert-item{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;margin-bottom:8px;font-size:13px}
 .alert-high{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b}
 .alert-medium{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
 .alert-low{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
-
-/* ── OPPORTUNITY ── */
 .opp-item{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:8px}
 .opp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .opp-name{font-size:14px;font-weight:700;color:var(--text)}
@@ -205,35 +167,25 @@ textarea.input{resize:vertical;min-height:80px}
 .stage-closed{background:#fee2e2;color:#991b1b}
 .opp-meta{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:12px;color:var(--muted)}
 .opp-meta-item span{display:block;font-size:13px;font-weight:700;color:var(--text);margin-top:2px}
-
-/* ── MODAL ── */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
 .modal{background:#fff;border-radius:14px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
 .modal-title{font-size:17px;font-weight:700;color:var(--text)}
 .modal-close{width:28px;height:28px;border-radius:6px;background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:.15s}
 .modal-close:hover{background:var(--border)}
-
-/* ── KB ── */
 .kb-section{margin-bottom:20px}
 .kb-section-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:8px;transition:.15s}
 .kb-section-header:hover{border-color:var(--accent)}
 .kb-section-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
 .kb-doc{background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px;transition:.15s;cursor:pointer}
 .kb-doc:hover{border-color:var(--accent)}
-
-/* ── SEARCH ── */
 .search-bar{position:relative;flex:1;max-width:320px}
 .search-bar input{width:100%;padding:8px 12px 8px 34px;border:1px solid var(--border2);border-radius:7px;font-size:13px;background:#fff;color:var(--text)}
 .search-bar::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px}
-
-/* ── EMPTY STATE ── */
 .empty-state{text-align:center;padding:48px 24px;color:var(--muted)}
 .empty-state-icon{font-size:40px;margin-bottom:12px}
 .empty-state h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
 .empty-state p{font-size:13px;line-height:1.6}
-
-/* ── MOBILE ── */
 .mobile-menu-btn{display:none;width:36px;height:36px;border-radius:7px;background:var(--bg);border:1px solid var(--border2);align-items:center;justify-content:center;cursor:pointer;font-size:18px;margin-right:8px}
 @media(max-width:768px){
   :root{--sidebar-w:0px}
@@ -244,8 +196,6 @@ textarea.input{resize:vertical;min-height:80px}
   .accounts-grid{grid-template-columns:1fr}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
 }
-
-/* ── LOADING ── */
 .spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
 .typing-dot{display:inline-flex;gap:3px;padding:4px 0}
@@ -253,13 +203,9 @@ textarea.input{resize:vertical;min-height:80px}
 .typing-dot span:nth-child(2){animation-delay:.2s}
 .typing-dot span:nth-child(3){animation-delay:.4s}
 @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
-
-/* ── UPLOAD DROP ── */
 .upload-zone{border:2px dashed var(--border2);border-radius:10px;padding:24px;text-align:center;cursor:pointer;transition:.15s}
 .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:rgba(16,185,129,.04)}
 .upload-zone p{font-size:13px;color:var(--muted);margin-top:6px}
-
-/* ── MARKDOWN in chat ── */
 .chat-bubble h1,.chat-bubble h2,.chat-bubble h3{font-size:14px;font-weight:700;color:#0f172a;margin:10px 0 5px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
 .chat-bubble h3{border:none;font-size:13px;margin:8px 0 3px}
 .chat-bubble table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
@@ -272,6 +218,7 @@ textarea.input{resize:vertical;min-height:80px}
 .chat-bubble strong{font-weight:700;color:#0f172a}
 .chat-bubble hr{border:none;border-top:1px solid #e2e8f0;margin:8px 0}
 .chat-msg.user .chat-bubble strong{color:#fff}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
 </style>
 </head>
 <body>
@@ -290,7 +237,6 @@ textarea.input{resize:vertical;min-height:80px}
 
 <!-- APP SHELL -->
 <div id="app-shell" style="display:none">
-  <!-- SIDEBAR -->
   <div id="sidebar">
     <div class="sb-header">
       <div class="sb-logo">
@@ -302,45 +248,20 @@ textarea.input{resize:vertical;min-height:80px}
       </div>
     </div>
     <div class="sb-nav">
-      <div class="sb-item active" data-view="dashboard">
-        <span class="sb-item-icon">🏠</span> Dashboard
-      </div>
+      <div class="sb-item active" data-view="dashboard"><span class="sb-item-icon">🏠</span> Dashboard</div>
       <div class="sb-section">CRM</div>
-      <div class="sb-item" data-view="accounts">
-        <span class="sb-item-icon">🏢</span> Accounts
-        <span class="sb-badge" id="badge-accounts" style="display:none">0</span>
-      </div>
-      <div class="sb-item" data-view="contacts">
-        <span class="sb-item-icon">👤</span> Contacts
-      </div>
-      <div class="sb-item" data-view="pipeline">
-        <span class="sb-item-icon">📊</span> Pipeline
-      </div>
+      <div class="sb-item" data-view="accounts"><span class="sb-item-icon">🏢</span> Accounts<span class="sb-badge" id="badge-accounts" style="display:none">0</span></div>
+      <div class="sb-item" data-view="contacts"><span class="sb-item-icon">👤</span> Contacts</div>
+      <div class="sb-item" data-view="pipeline"><span class="sb-item-icon">📊</span> Pipeline</div>
       <div class="sb-section">Work</div>
-      <div class="sb-item" data-view="email">
-        <span class="sb-item-icon">📨</span> Email Triage
-      </div>
-      <div class="sb-item" data-view="ai">
-        <span class="sb-item-icon">🤖</span> AI Assistant
-      </div>
-      <div class="sb-item" data-view="ratebuilder">
-        <span class="sb-item-icon">💰</span> Rate Builder
-      </div>
-      <div class="sb-item" data-view="kb">
-        <span class="sb-item-icon">📚</span> Knowledge Base
-      </div>
-      <div class="sb-item" data-view="actions">
-        <span class="sb-item-icon">✅</span> Action Items
-        <span class="sb-badge" id="badge-actions" style="display:none">0</span>
-      </div>
-      <div class="sb-item" data-view="alerts">
-        <span class="sb-item-icon">🔔</span> Alerts
-        <span class="sb-badge" id="badge-alerts" style="display:none">0</span>
-      </div>
+      <div class="sb-item" data-view="email"><span class="sb-item-icon">📨</span> Email Triage</div>
+      <div class="sb-item" data-view="ai"><span class="sb-item-icon">🤖</span> AI Assistant</div>
+      <div class="sb-item" data-view="ratebuilder"><span class="sb-item-icon">💰</span> Rate Builder</div>
+      <div class="sb-item" data-view="kb"><span class="sb-item-icon">📚</span> Knowledge Base</div>
+      <div class="sb-item" data-view="actions"><span class="sb-item-icon">✅</span> Action Items<span class="sb-badge" id="badge-actions" style="display:none">0</span></div>
+      <div class="sb-item" data-view="alerts"><span class="sb-item-icon">🔔</span> Alerts<span class="sb-badge" id="badge-alerts" style="display:none">0</span></div>
       <div class="sb-section">More</div>
-      <div class="sb-item" data-view="settings">
-        <span class="sb-item-icon">⚙️</span> Settings
-      </div>
+      <div class="sb-item" data-view="settings"><span class="sb-item-icon">⚙️</span> Settings</div>
     </div>
     <div class="sb-footer">
       <div class="sb-user">
@@ -352,8 +273,6 @@ textarea.input{resize:vertical;min-height:80px}
       </div>
     </div>
   </div>
-
-  <!-- MAIN -->
   <div id="main">
     <div class="main-header">
       <div style="display:flex;align-items:center;gap:8px">
@@ -362,9 +281,7 @@ textarea.input{resize:vertical;min-height:80px}
       </div>
       <div class="main-header-right" id="header-actions"></div>
     </div>
-    <div class="main-content" id="main-content">
-      <!-- content rendered here -->
-    </div>
+    <div class="main-content" id="main-content"></div>
   </div>
 </div>
 
@@ -374,6 +291,7 @@ textarea.input{resize:vertical;min-height:80px}
 </div>
 
 <script>
+
 // ══════════════════════════════════════════════════════
 // CONFIG
 // ══════════════════════════════════════════════════════
@@ -394,48 +312,26 @@ const db = createClient(
 // ══════════════════════════════════════════════════════
 let S = {
   view: 'dashboard',
-  accounts: [],
-  contacts: [],
-  documents: [],
-  kbEntries: [],
-  savedQueries: [],
-  currentAccount: null,
-  currentTab: 'overview',
-  chat: [], // global AI chat
-  chatLoading: false,
-  chatInput: '',
-  searchTooltip: null,
-  actionItems: [],
-  alerts: [],
-  opportunities: [],
-  settings: {},
-  searchQuery: '',
+  accounts: [], contacts: [], documents: [], kbEntries: [],
+  savedQueries: [], currentAccount: null, currentTab: 'overview',
+  chat: [], chatLoading: false, chatInput: '',
+  searchTooltip: null, actionItems: [], alerts: [],
+  opportunities: [], settings: {}, searchQuery: '',
 };
 
-// ══════════════════════════════════════════════════════
-// ABBREVIATIONS & ALIASES
-// ══════════════════════════════════════════════════════
 const ABBREV_MAP = {
   'ags': 'accelerated global solutions',
   'chr': 'c.h. robinson',
   'dpw': 'dp world',
   'ups': 'ups',
-  'wfs': 'wfs',
 };
 const PAYER_ALIASES = [
   ['accelerated global', 'accelerated global solutions', 'ags'],
   ['c.h. robinson', 'ch robinson', 'chr'],
   ['dp world', 'dpw', 'dp world logistics'],
-  ['expeditors'],
-  ['estes forwarding', 'estes'],
-  ['radiant global', 'radiant'],
-  ['fast track'],
-  ['transfair', 'transgroup'],
-  ['sparx logistics', 'sparx'],
-  ['odyssey logistics', 'odyssey'],
-  ['amazon'],
-  ['cv international'],
-  ['ups'],
+  ['expeditors'],['estes forwarding', 'estes'],['radiant global', 'radiant'],
+  ['fast track'],['transfair'],['sparx logistics', 'sparx'],
+  ['odyssey logistics', 'odyssey'],['amazon'],['cv international'],['ups'],
 ];
 
 // ══════════════════════════════════════════════════════
@@ -464,22 +360,16 @@ if (sessionStorage.getItem('aimc_auth') === '1') { showApp(); }
 // ══════════════════════════════════════════════════════
 async function initApp() {
   await Promise.all([
-    loadAccounts(),
-    loadContacts(),
-    loadDocuments(),
-    loadKbEntries(),
-    loadSavedQueries(),
-    loadActionItems(),
-    loadAlerts(),
-    loadOpportunities(),
-    loadSettings(),
+    loadAccounts(), loadContacts(), loadDocuments(), loadKbEntries(),
+    loadSavedQueries(), loadActionItems(), loadAlerts(),
+    loadOpportunities(), loadSettings(),
   ]);
   renderView('dashboard');
   updateBadges();
 }
 
 // ══════════════════════════════════════════════════════
-// DATA LAYER — SUPABASE
+// DATA LAYER
 // ══════════════════════════════════════════════════════
 async function loadAccounts() {
   const { data } = await db.from('accounts').select('*').order('name');
@@ -525,7 +415,6 @@ async function loadAccountChat(accountId) {
 async function saveChatMessage(accountId, role, content) {
   await db.from('chat_messages').insert({ account_id: accountId, role, content });
 }
-
 function updateBadges() {
   const pendingActions = S.actionItems.filter(a => !a.completed).length;
   const el = document.getElementById('badge-actions');
@@ -535,7 +424,7 @@ function updateBadges() {
 }
 
 // ══════════════════════════════════════════════════════
-// EXCEL / FILE UTILITIES (ported from original app)
+// FILE PROCESSING
 // ══════════════════════════════════════════════════════
 function saveSheets(docId, sheets) {
   try { localStorage.setItem('aimc_sheets_' + docId, JSON.stringify(sheets)); return true; } catch(e) { return false; }
@@ -561,21 +450,14 @@ async function processExcelFile(file, accountId, section) {
         });
         const firstSheet = sheets[sheetNames[0]] || [];
         const colCount = firstSheet[0] ? firstSheet[0].length : 0;
-        // Try to detect date range from filename or first row
         const dateRange = detectDateRange(file.name, firstSheet);
-        // Store metadata in Supabase
         const { data, error } = await db.from('documents').insert({
-          account_id: accountId || null,
-          section: section || 'general',
-          name: file.name,
-          file_type: 'excel',
-          row_count: rowCount,
-          col_count: colCount,
-          sheet_names: sheetNames,
-          date_range: dateRange,
+          account_id: accountId || null, section: section || 'general',
+          name: file.name, file_type: 'excel',
+          row_count: rowCount, col_count: colCount,
+          sheet_names: sheetNames, date_range: dateRange,
         }).select().single();
         if (error) throw error;
-        // Store sheet data in localStorage
         saveSheets(data.id, sheets);
         S.documents.unshift(data);
         resolve(data);
@@ -592,33 +474,24 @@ async function processImageFile(file, accountId, section) {
     reader.onload = async (e) => {
       try {
         const base64 = e.target.result.split(',')[1];
-        // Extract text from image using AI
         let extractedText = '';
         try {
           const resp = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: 'claude-sonnet-4-20250514',
-              max_tokens: 1000,
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000,
               messages: [{ role: 'user', content: [
                 { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 }},
-                { type: 'text', text: 'Extract all text, data, and key information from this image. Format it clearly with labels.' }
-              ]}]
-            })
+                { type: 'text', text: 'Extract all text, data, and key information from this image.' }
+              ]}]})
           });
           const d = await resp.json();
           extractedText = d.content?.[0]?.text || '';
         } catch(e) { extractedText = '[Image - text extraction failed]'; }
         const { data, error } = await db.from('documents').insert({
-          account_id: accountId || null,
-          section: section || 'general',
-          name: file.name,
-          file_type: 'image',
-          extracted_text: extractedText,
+          account_id: accountId || null, section: section || 'general',
+          name: file.name, file_type: 'image', extracted_text: extractedText,
         }).select().single();
         if (error) throw error;
-        // Store base64 in localStorage
         try { localStorage.setItem('aimc_img_' + data.id, e.target.result); } catch(e) {}
         S.documents.unshift(data);
         resolve(data);
@@ -641,7 +514,7 @@ function detectDateRange(filename, sheet) {
 }
 
 // ══════════════════════════════════════════════════════
-// AI CONTEXT BUILDER (smart Excel search)
+// AI CONTEXT BUILDER
 // ══════════════════════════════════════════════════════
 function extractSearchTerms(question) {
   const STOP = new Set(['the','and','for','from','this','that','with','what','where','when','have','been','will','show','tell','give','find','look','pull','data','info','information','about','please','using','under','file','named','excel']);
@@ -673,10 +546,7 @@ function extractSearchTerms(question) {
 
 function expandSearchTerms(terms) {
   const expanded = [...terms];
-  terms.forEach(t => {
-    const exp = ABBREV_MAP[t.toLowerCase()];
-    if (exp) expanded.push(exp);
-  });
+  terms.forEach(t => { const exp = ABBREV_MAP[t.toLowerCase()]; if (exp) expanded.push(exp); });
   return [...new Set(expanded)];
 }
 
@@ -691,8 +561,7 @@ function fileToContextText(doc, sheets, searchTerms, sectionLabel) {
   const dataRows = sheet.slice(1);
   const rowToLine = row => row.map(c => String(c ?? '')).join('\t');
   const colLegend = isPayerFile ? 'Columns: [0]=Payer Group | [1]=Payer Branch | [2]=Vendor paid | [3+]=Monthly transactions\n'
-                  : isVendorFile ? 'Columns: [0]=Vendor Group | [1]=Vendor Branch | [2]=Payer who paid | [3+]=Monthly transactions\n'
-                  : '';
+                  : isVendorFile ? 'Columns: [0]=Vendor Group | [1]=Vendor Branch | [2]=Payer who paid | [3+]=Monthly transactions\n' : '';
   const headerLine = rowToLine(header);
   const prefix = sectionLabel ? `[${sectionLabel}]\n` : '';
   if (searchTerms.length > 0) {
@@ -702,17 +571,14 @@ function fileToContextText(doc, sheets, searchTerms, sectionLabel) {
     if (isPayerFile || isVendorFile) {
       const col01 = dataRows.filter(row => matchAny(row[0]) || matchAny(row[1]));
       matches = col01.length > 0 ? col01 : dataRows.filter(row => row.some(c => matchAny(c)));
-    } else {
-      matches = dataRows.filter(row => row.some(c => matchAny(c)));
-    }
+    } else { matches = dataRows.filter(row => row.some(c => matchAny(c))); }
     if (matches.length > 0) {
       let usedChars = headerLine.length + colLegend.length + 300;
       const lines = [];
       for (const row of matches) {
         const line = rowToLine(row);
         if (usedChars + line.length > CHAR_BUDGET) break;
-        lines.push(line);
-        usedChars += line.length + 1;
+        lines.push(line); usedChars += line.length + 1;
       }
       const note = lines.length < matches.length ? `\n(showing ${lines.length} of ${matches.length} matching rows)` : `\n(${matches.length} matching rows)`;
       return `${prefix}[Excel: ${doc.name}${doc.date_range ? ' — ' + doc.date_range : ''}]\n${colLegend}Filtered for: ${searchTerms.join(', ')}\n${headerLine}\n${lines.join('\n')}${note}`;
@@ -724,8 +590,7 @@ function fileToContextText(doc, sheets, searchTerms, sectionLabel) {
   for (const row of dataRows.slice(0, 400)) {
     const line = rowToLine(row);
     if (usedChars + line.length > CHAR_BUDGET) break;
-    lines.push(line);
-    usedChars += line.length + 1;
+    lines.push(line); usedChars += line.length + 1;
   }
   return `${prefix}[Excel: ${doc.name}${doc.date_range ? ' — ' + doc.date_range : ''}]\n${colLegend}${lines.join('\n')}`;
 }
@@ -734,121 +599,70 @@ function buildKbContext(question, accountId) {
   const rawTerms = extractSearchTerms(question);
   const searchTerms = expandSearchTerms(rawTerms);
   const qLower = question.toLowerCase();
-
-  // Detect section intent
   const wantsPayers = /\bpayer(s|\s+file|\s+tab|\s+data)?\b/.test(qLower);
   const wantsVendors = /\bvendor(s|\s+file|\s+tab|\s+data)?\b/.test(qLower);
-
-  // Named file detection
   const namedFileRaw = (question.match(/(?:file\s+)?named[:\s]+([^\n,]+)/i)?.[1]?.trim() || null);
   const namedFileLower = namedFileRaw?.toLowerCase() || null;
-
-  // Detect tooltip: what we're searching for
   const expandedNames = [];
   rawTerms.forEach(t => { const e = ABBREV_MAP[t.toLowerCase()]; if (e) expandedNames.push(`${t} → ${e}`); });
   S.searchTooltip = expandedNames.length > 0 ? expandedNames.join(', ') : null;
-
-  // Gather relevant documents
   let docs = S.documents;
-
-  // If account-specific, prioritize that account's docs first
   if (accountId) {
     const acctDocs = docs.filter(d => d.account_id === accountId);
     const otherDocs = docs.filter(d => d.account_id !== accountId);
     docs = [...acctDocs, ...otherDocs];
   }
-
-  // Score docs
-  const SECTION_LABELS = {
-    'payer': 'PAYER FILE — companies that MAKE payments',
-    'vendor': 'VENDOR FILE — companies that RECEIVE payments',
-    'customer_payer': 'CUSTOMER PROFILE [PAYER]',
-    'customer_vendor': 'CUSTOMER PROFILE [VENDOR]',
-    'general': 'KNOWLEDGE BASE',
-  };
-
   const scored = docs.map(doc => {
     const section = doc.section || 'general';
     const isPayerSection = section === 'payer' || section === 'paycargo_payers';
     const isVendorSection = section === 'vendor' || section === 'paycargo_vendors';
-
-    // Section filter
     if (wantsPayers && !wantsVendors && isVendorSection) return null;
     if (!wantsPayers && wantsVendors && isPayerSection) return null;
-
     const sheets = doc.file_type === 'excel' ? loadSheets(doc.id) : null;
     const docTitle = (doc.name || '').toLowerCase();
-
     const namedMatch = namedFileLower && (docTitle.includes(namedFileLower) || (accountId && doc.account_id === accountId));
     const titleMatch = searchTerms.some(t => docTitle.includes(t.toLowerCase()));
     const acctMatch = accountId && doc.account_id === accountId;
-
-    // File content match (col 0/1 priority for payer/vendor)
     let fileMatch = false;
     if (!titleMatch && sheets && searchTerms.length > 0) {
       const sheetData = Object.values(sheets)[0] || [];
       const rows = sheetData.slice(1);
       const termsLC = searchTerms.map(t => t.toLowerCase());
       const matchAny = val => termsLC.some(t => String(val ?? '').toLowerCase().includes(t));
-      if (isPayerSection || isVendorSection) {
-        fileMatch = rows.some(r => matchAny(r[0]) || matchAny(r[1]));
-      } else {
-        fileMatch = rows.some(r => r.some(c => matchAny(c)));
-      }
+      if (isPayerSection || isVendorSection) fileMatch = rows.some(r => matchAny(r[0]) || matchAny(r[1]));
+      else fileMatch = rows.some(r => r.some(c => matchAny(c)));
     }
-
     const priority = namedMatch ? -1 : acctMatch ? 0 : titleMatch ? 0 : fileMatch ? 1 : 2;
-
-    // Determine label
     let sectionLabel = '';
     if (isPayerSection) sectionLabel = 'PAYER FILE — these companies MAKE payments';
     else if (isVendorSection) sectionLabel = 'VENDOR FILE — these companies RECEIVE payments';
-    else if (acctMatch) {
-      const acct = S.accounts.find(a => a.id === accountId);
-      const type = acct?.type || 'Payer';
-      sectionLabel = `CUSTOMER PROFILE [${type.toUpperCase()}]`;
-    } else sectionLabel = 'KNOWLEDGE BASE';
-
+    else if (acctMatch) { const acct = S.accounts.find(a => a.id === accountId); sectionLabel = `CUSTOMER PROFILE [${(acct?.type || 'Payer').toUpperCase()}]`; }
+    else sectionLabel = 'KNOWLEDGE BASE';
     return { doc, sheets, priority, sectionLabel };
   }).filter(Boolean).sort((a,b) => a.priority - b.priority);
-
-  // If named match found, only send that doc for payer/vendor sections
   const hasNamedMatch = scored.some(s => s.priority === -1);
   const finalDocs = hasNamedMatch
     ? scored.filter(s => (s.doc.section === 'payer' || s.doc.section === 'vendor') ? s.priority === -1 : true)
     : scored;
-
   let totalChars = 0;
   const MAX_CHARS = 60000;
   const parts = [];
-
   for (const { doc, sheets, sectionLabel } of finalDocs) {
     if (totalChars >= MAX_CHARS) break;
     let text = '';
-    if (doc.file_type === 'excel') {
-      text = fileToContextText(doc, sheets, searchTerms, sectionLabel);
-    } else if (doc.file_type === 'image') {
-      text = `[${sectionLabel}] ${doc.name}:\n${doc.extracted_text || '[no extracted text]'}`;
-    } else {
-      text = `[${sectionLabel}] ${doc.name}:\n${doc.extracted_text || ''}`;
-    }
+    if (doc.file_type === 'excel') text = fileToContextText(doc, sheets, searchTerms, sectionLabel);
+    else if (doc.file_type === 'image') text = `[${sectionLabel}] ${doc.name}:\n${doc.extracted_text || '[no extracted text]'}`;
+    else text = `[${sectionLabel}] ${doc.name}:\n${doc.extracted_text || ''}`;
     totalChars += text.length;
     parts.push(text);
   }
-
-  // Also include KB text entries
   const kbText = S.kbEntries.filter(e => !accountId || e.account_id === accountId || !e.account_id)
-    .slice(0, 10)
-    .map(e => `[${e.section?.toUpperCase() || 'KB'}] ${e.title}:\n${e.content || ''}`)
-    .join('\n\n');
+    .slice(0, 10).map(e => `[${e.section?.toUpperCase() || 'KB'}] ${e.title}:\n${e.content || ''}`).join('\n\n');
   if (kbText) parts.push(kbText);
-
-  // Account notes
   if (accountId) {
     const acct = S.accounts.find(a => a.id === accountId);
     if (acct?.description) parts.unshift(`ACCOUNT CONTEXT: ${acct.name}\n${acct.description}\nType: ${acct.type || 'Payer'}`);
   }
-
   return parts.length > 0 ? 'KNOWLEDGE BASE:\n\n' + parts.join('\n\n---\n\n') : 'No knowledge base documents loaded yet.';
 }
 
@@ -859,22 +673,12 @@ PAYER vs VENDOR — CRITICAL:
 - VENDOR = company that RECEIVES payments (cargo handlers, airlines, etc.)
 - [PAYER FILE] columns: [0]=Payer Group | [1]=Payer Branch | [2]=Vendor paid | [3+]=Monthly transactions
 - [VENDOR FILE] columns: [0]=Vendor Group | [1]=Vendor Branch | [2]=Payer who paid | [3+]=Monthly transactions
-- Never confuse a vendor name in col 2 with the subject — the subject is always col 0/1
 
-KNOWN ABBREVIATIONS:
-- AGS = Accelerated Global Solutions- Payer
-- CHR = C.H. Robinson
-- DPW = DP World Logistics
+KNOWN ABBREVIATIONS: AGS = Accelerated Global Solutions, CHR = C.H. Robinson, DPW = DP World Logistics
 
 RESPONSE STYLE:
-For data analysis (trends, declines, comparisons):
-- Use ## headers for each branch, markdown tables for numbers
-- Calculate averages: "Avg Jul-Dec: X → Avg Jan-Feb: Y = change"
-- Show exact months when something dropped to zero
-- End with a Summary Table and Key Insight
-
+For data analysis: use ## headers, markdown tables, calculate averages, show exact months. End with Summary Table and Key Insight.
 For conversational questions: short prose, 2-3 sentences.
-
 Always: cite specific numbers, never repeat the question, end with one focused follow-up offer.`;
 
 // ══════════════════════════════════════════════════════
@@ -890,7 +694,7 @@ function renderMD(text) {
     const [hRow,, ...dRows] = tableRows;
     const headers = hRow.split('|').map(c=>c.trim()).filter(Boolean);
     out.push(`<div style="overflow-x:auto;margin:8px 0"><table><thead><tr>${headers.map(h=>`<th>${inlineMD(h)}</th>`).join('')}</tr></thead><tbody>${
-      dRows.map((r,i)=>{const cells=r.split('|').map(c=>c.trim()).filter(Boolean);return`<tr>${cells.map(c=>`<td>${inlineMD(c)}</td>`).join('')}</tr>`;}).join('')
+      dRows.map(r=>{const cells=r.split('|').map(c=>c.trim()).filter(Boolean);return`<tr>${cells.map(c=>`<td>${inlineMD(c)}</td>`).join('')}</tr>`;}).join('')
     }</tbody></table></div>`);
     tableRows=[]; inTable=false;
   };
@@ -928,15 +732,12 @@ function inlineMD(t) {
 // ══════════════════════════════════════════════════════
 function renderView(view) {
   S.view = view;
-  // Update sidebar active
-  document.querySelectorAll('.sb-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.view === view);
-  });
-  const titles = { dashboard:'Dashboard', accounts:'Accounts', contacts:'Contacts', pipeline:'Pipeline', ai:'AI Assistant', email:'Email Triage', ratebuilder:'Rate Builder', kb:'Knowledge Base', actions:'Action Items', alerts:'Alerts', settings:'Settings' };
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  const titles = { dashboard:'Dashboard', accounts:'Accounts', contacts:'Contacts', pipeline:'Pipeline',
+    ai:'AI Assistant', email:'Email Triage', ratebuilder:'Rate Builder', kb:'Knowledge Base',
+    actions:'Action Items', alerts:'Alerts', settings:'Settings' };
   document.getElementById('page-title').textContent = titles[view] || '';
-  const content = document.getElementById('main-content');
-  const headerActions = document.getElementById('header-actions');
-  headerActions.innerHTML = '';
+  document.getElementById('header-actions').innerHTML = '';
   if (view === 'dashboard') renderDashboard();
   else if (view === 'accounts') renderAccounts();
   else if (view === 'account-detail') renderAccountDetail();
@@ -949,7 +750,6 @@ function renderView(view) {
   else if (view === 'actions') renderActions();
   else if (view === 'alerts') renderAlerts();
   else if (view === 'settings') renderSettings();
-  // Close mobile sidebar
   document.getElementById('sidebar').classList.remove('open');
 }
 document.querySelectorAll('.sb-item[data-view]').forEach(el => {
@@ -963,14 +763,12 @@ function renderDashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const pendingActions = S.actionItems.filter(a => !a.completed).length;
-  const openOpps = S.opportunities.filter(o => o.status === 'open').length;
   const closingSoon = S.opportunities.filter(o => {
     if (!o.close_date) return false;
     const diff = (new Date(o.close_date) - new Date()) / 86400000;
     return diff >= 0 && diff <= 14;
   }).length;
   const needsAttention = S.accounts.filter(a => a.health === 'red').length;
-
   document.getElementById('main-content').innerHTML = `
     <div style="margin-bottom:24px">
       <h2 style="font-size:24px;font-weight:800;color:var(--text)">${greeting}, Isaac 👋</h2>
@@ -978,51 +776,33 @@ function renderDashboard() {
     </div>
     <div class="stats-grid">
       <div class="stat-card" style="cursor:pointer" onclick="renderView('accounts')">
-        <div class="stat-label">Total Accounts</div>
-        <div class="stat-value">${S.accounts.length}</div>
-        <div class="stat-sub">Customer profiles</div>
+        <div class="stat-label">Total Accounts</div><div class="stat-value">${S.accounts.length}</div><div class="stat-sub">Customer profiles</div>
       </div>
       <div class="stat-card ${needsAttention > 0 ? 'stat-red' : 'stat-green'}" style="cursor:pointer" onclick="renderView('accounts')">
-        <div class="stat-label">Needs Attention</div>
-        <div class="stat-value">${needsAttention}</div>
-        <div class="stat-sub">Accounts flagged</div>
+        <div class="stat-label">Needs Attention</div><div class="stat-value">${needsAttention}</div><div class="stat-sub">Accounts flagged</div>
       </div>
       <div class="stat-card stat-yellow" style="cursor:pointer" onclick="renderView('pipeline')">
-        <div class="stat-label">Closing Soon</div>
-        <div class="stat-value">${closingSoon}</div>
-        <div class="stat-sub">Within 14 days</div>
+        <div class="stat-label">Closing Soon</div><div class="stat-value">${closingSoon}</div><div class="stat-sub">Within 14 days</div>
       </div>
       <div class="stat-card" style="cursor:pointer" onclick="renderView('actions')">
-        <div class="stat-label">Open Actions</div>
-        <div class="stat-value">${pendingActions}</div>
-        <div class="stat-sub">Tasks pending</div>
+        <div class="stat-label">Open Actions</div><div class="stat-value">${pendingActions}</div><div class="stat-sub">Tasks pending</div>
       </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="card">
         <div class="card-title">🔔 Recent Alerts</div>
-        ${S.alerts.slice(0,4).map(a => `
-          <div class="alert-item alert-${a.severity || 'medium'}">
-            <span>${a.type === 'decline' ? '📉' : a.type === 'renewal' ? '📅' : '⚠️'}</span>
-            <div>
-              <div style="font-weight:600;font-size:12px">${escHTML(a.message)}</div>
-              <div style="font-size:11px;opacity:.7;margin-top:2px">${timeAgo(a.created_at)}</div>
-            </div>
-          </div>
-        `).join('') || '<div class="empty-state"><div class="empty-state-icon">✅</div><p>No active alerts</p></div>'}
+        ${S.alerts.slice(0,4).map(a => `<div class="alert-item alert-${a.severity || 'medium'}">
+          <span>${a.type==='decline'?'📉':a.type==='renewal'?'📅':'⚠️'}</span>
+          <div><div style="font-weight:600;font-size:12px">${escHTML(a.message)}</div><div style="font-size:11px;opacity:.7;margin-top:2px">${timeAgo(a.created_at)}</div></div>
+        </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">✅</div><p>No active alerts</p></div>'}
       </div>
       <div class="card">
         <div class="card-title">🏢 Recent Accounts</div>
-        ${S.accounts.slice(0,5).map(a => `
-          <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openAccount('${a.id}')">
-            <div style="width:8px;height:8px;border-radius:50%;background:${a.health==='red'?'var(--danger)':a.health==='yellow'?'var(--warn)':'var(--accent)'}"></div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHTML(a.name)}</div>
-              <div style="font-size:11px;color:var(--muted)">${escHTML(a.type || 'Payer')}</div>
-            </div>
-            <div style="font-size:11px;color:var(--muted2)">${timeAgo(a.updated_at || a.created_at)}</div>
-          </div>
-        `).join('') || '<div class="empty-state"><p>No accounts yet</p></div>'}
+        ${S.accounts.slice(0,5).map(a => `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openAccount('${a.id}')">
+          <div style="width:8px;height:8px;border-radius:50%;background:${a.health==='red'?'var(--danger)':a.health==='yellow'?'var(--warn)':'var(--accent)'}"></div>
+          <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHTML(a.name)}</div><div style="font-size:11px;color:var(--muted)">${escHTML(a.type||'Payer')}</div></div>
+          <div style="font-size:11px;color:var(--muted2)">${timeAgo(a.updated_at||a.created_at)}</div>
+        </div>`).join('') || '<div class="empty-state"><p>No accounts yet</p></div>'}
         <div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="renderView('accounts')">View all →</button></div>
       </div>
     </div>
@@ -1050,29 +830,26 @@ function renderAccounts() {
     <button class="btn btn-primary" onclick="openAddAccount()">+ Add Account</button>`;
   const filtered = S.accounts.filter(a =>
     !S.searchQuery || a.name.toLowerCase().includes(S.searchQuery.toLowerCase()) ||
-    (a.type || '').toLowerCase().includes(S.searchQuery.toLowerCase())
+    (a.type||'').toLowerCase().includes(S.searchQuery.toLowerCase())
   );
   document.getElementById('main-content').innerHTML = `
     <div class="accounts-grid">
       ${filtered.map(a => {
         const docs = S.documents.filter(d => d.account_id === a.id);
         const contacts = S.contacts.filter(c => c.account_id === a.id);
-        const initials = a.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
-        return `<div class="account-card health-${a.health || 'green'}" onclick="openAccount('${a.id}')">
-          <div class="account-card-header">
-            <div class="account-avatar">${initials}</div>
-            <span class="account-type-badge">${escHTML(a.type || 'Payer')}</span>
-          </div>
+        const initials = a.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        return `<div class="account-card health-${a.health||'green'}" onclick="openAccount('${a.id}')">
+          <div class="account-card-header"><div class="account-avatar">${initials}</div><span class="account-type-badge">${escHTML(a.type||'Payer')}</span></div>
           <div class="account-card-name">${escHTML(a.name)}</div>
-          <div class="account-card-meta">${escHTML(a.industry || '')}</div>
+          <div class="account-card-meta">${escHTML(a.industry||'')}</div>
           <div class="account-card-tags">
-            ${docs.length > 0 ? `<span class="tag">📎 ${docs.length} file${docs.length>1?'s':''}</span>` : ''}
-            ${contacts.length > 0 ? `<span class="tag">👤 ${contacts.length} contact${contacts.length>1?'s':''}</span>` : ''}
-            ${a.contract_expiry ? `<span class="tag">📅 ${new Date(a.contract_expiry).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>` : ''}
-            <span class="tag" style="display:flex;align-items:center;gap:4px"><span class="health-dot health-${a.health || 'green'}"></span>${a.health || 'healthy'}</span>
+            ${docs.length>0?`<span class="tag">📎 ${docs.length} file${docs.length>1?'s':''}</span>`:''}
+            ${contacts.length>0?`<span class="tag">👤 ${contacts.length} contact${contacts.length>1?'s':''}</span>`:''}
+            ${a.contract_expiry?`<span class="tag">📅 ${new Date(a.contract_expiry).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</span>`:''}
+            <span class="tag" style="display:flex;align-items:center;gap:4px"><span class="health-dot health-${a.health||'green'}"></span>${a.health||'healthy'}</span>
           </div>
         </div>`;
-      }).join('') || '<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🏢</div><h3>No accounts yet</h3><p>Add your first account to get started</p><button class="btn btn-primary" style="margin-top:12px" onclick="openAddAccount()">+ Add Account</button></div>'}
+      }).join('')||'<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">🏢</div><h3>No accounts yet</h3><p>Add your first account to get started</p><button class="btn btn-primary" style="margin-top:12px" onclick="openAddAccount()">+ Add Account</button></div>'}
     </div>`;
 }
 
@@ -1094,39 +871,32 @@ async function renderAccountDetail() {
   const { data: notes } = await db.from('notes').select('*').eq('account_id', a.id).order('created_at', {ascending:false});
   const chat = await loadAccountChat(a.id);
   const initials = a.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-
   document.getElementById('header-actions').innerHTML = `
     <button class="btn btn-secondary btn-sm" onclick="renderView('accounts')">← Back</button>
     <button class="btn btn-secondary btn-sm" onclick="editAccount('${a.id}')">Edit</button>
     <button class="btn btn-danger btn-sm" onclick="deleteAccount('${a.id}')">Delete</button>`;
-
   const tabDefs = [
-    {id:'overview',label:'Overview'},
-    {id:'files',label:`Files (${docs.length})`},
-    {id:'contacts',label:`Contacts (${contacts.length})`},
-    {id:'notes',label:`Notes (${notes?.length||0})`},
-    {id:'chat',label:'AI Chat'},
-    {id:'opportunities',label:`Pipeline (${opps.length})`},
+    {id:'overview',label:'Overview'},{id:'files',label:`Files (${docs.length})`},
+    {id:'contacts',label:`Contacts (${contacts.length})`},{id:'notes',label:`Notes (${notes?.length||0})`},
+    {id:'chat',label:'AI Chat'},{id:'opportunities',label:`Pipeline (${opps.length})`},
   ];
-
   document.getElementById('main-content').innerHTML = `
     <div class="detail-header">
       <div class="detail-header-top">
         <div class="detail-avatar">${initials}</div>
         <div style="flex:1">
           <div class="detail-name">${escHTML(a.name)}</div>
-          <div class="detail-meta">${escHTML(a.type || 'Payer')}${a.industry ? ' · ' + escHTML(a.industry) : ''}${a.website ? ' · <a href="'+escHTML(a.website)+'" target="_blank" style="color:var(--info)">'+escHTML(a.website)+'</a>' : ''}</div>
+          <div class="detail-meta">${escHTML(a.type||'Payer')}${a.industry?' · '+escHTML(a.industry):''}${a.website?' · <a href="'+escHTML(a.website)+'" target="_blank" style="color:var(--info)">'+escHTML(a.website)+'</a>':''}</div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="health-dot health-${a.health || 'green'}" style="width:10px;height:10px"></span>
-          <span style="font-size:12px;color:var(--muted)">${a.health || 'healthy'}</span>
+          <span class="health-dot health-${a.health||'green'}" style="width:10px;height:10px"></span>
+          <span style="font-size:12px;color:var(--muted)">${a.health||'healthy'}</span>
         </div>
       </div>
-      ${a.description ? `<div style="font-size:13px;color:var(--muted);line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">${escHTML(a.description)}</div>` : ''}
+      ${a.description?`<div style="font-size:13px;color:var(--muted);line-height:1.6;padding-top:8px;border-top:1px solid var(--border)">${escHTML(a.description)}</div>`:''}
     </div>
     <div class="tabs">${tabDefs.map(t=>`<div class="tab${S.currentTab===t.id?' active':''}" data-tab="${t.id}">${t.label}</div>`).join('')}</div>
     <div id="tab-content-area"></div>`;
-
   document.querySelectorAll('.tab').forEach(el => {
     el.addEventListener('click', () => { S.currentTab = el.dataset.tab; renderTab(a, docs, contacts, notes||[], chat, opps); });
   });
@@ -1136,12 +906,12 @@ async function renderAccountDetail() {
 function renderTab(a, docs, contacts, notes, chat, opps) {
   document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === S.currentTab));
   const el = document.getElementById('tab-content-area');
-  if (S.currentTab === 'overview') renderTabOverview(el, a, docs, contacts, opps);
-  else if (S.currentTab === 'files') renderTabFiles(el, a, docs);
-  else if (S.currentTab === 'contacts') renderTabContacts(el, a, contacts);
-  else if (S.currentTab === 'notes') renderTabNotes(el, a, notes);
-  else if (S.currentTab === 'chat') renderTabChat(el, a, chat);
-  else if (S.currentTab === 'opportunities') renderTabOpps(el, a, opps);
+  if (S.currentTab==='overview') renderTabOverview(el,a,docs,contacts,opps);
+  else if (S.currentTab==='files') renderTabFiles(el,a,docs);
+  else if (S.currentTab==='contacts') renderTabContacts(el,a,contacts);
+  else if (S.currentTab==='notes') renderTabNotes(el,a,notes);
+  else if (S.currentTab==='chat') renderTabChat(el,a,chat);
+  else if (S.currentTab==='opportunities') renderTabOpps(el,a,opps);
 }
 
 function renderTabOverview(el, a, docs, contacts, opps) {
@@ -1150,12 +920,12 @@ function renderTabOverview(el, a, docs, contacts, opps) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="card">
         <div class="card-title">Account Details</div>
-        ${fieldRow('Type', a.type || 'Payer')}
-        ${fieldRow('Industry', a.industry || '—')}
-        ${fieldRow('Website', a.website || '—')}
-        ${fieldRow('Contract Expiry', a.contract_expiry ? new Date(a.contract_expiry).toLocaleDateString() : '—')}
-        ${fieldRow('Monthly Volume Committed', a.committed_monthly_volume ? a.committed_monthly_volume.toLocaleString() + ' txns' : '—')}
-        ${fieldRow('Health', `<span style="color:${a.health==='red'?'var(--danger)':a.health==='yellow'?'var(--warn)':'var(--accent)'}">●</span> ${a.health || 'healthy'}`)}
+        ${fieldRow('Type', a.type||'Payer')}
+        ${fieldRow('Industry', a.industry||'—')}
+        ${fieldRow('Website', a.website||'—')}
+        ${fieldRow('Contract Expiry', a.contract_expiry?new Date(a.contract_expiry).toLocaleDateString():'—')}
+        ${fieldRow('Monthly Volume', a.committed_monthly_volume?a.committed_monthly_volume.toLocaleString()+' txns':'—')}
+        ${fieldRow('Health', `<span style="color:${a.health==='red'?'var(--danger)':a.health==='yellow'?'var(--warn)':'var(--accent)'}">●</span> ${a.health||'healthy'}`)}
       </div>
       <div class="card">
         <div class="card-title">Quick Stats</div>
@@ -1169,21 +939,19 @@ function renderTabOverview(el, a, docs, contacts, opps) {
     <div class="card" style="margin-top:16px">
       <div class="card-title">Quick Actions</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
-        <button class="btn btn-primary btn-sm" onclick="S.currentTab='chat';renderAccountDetail()">🤖 Open AI Chat</button>
+        <button class="btn btn-primary btn-sm" onclick="S.currentTab='chat';renderAccountDetail()">🤖 AI Chat</button>
         <button class="btn btn-secondary btn-sm" onclick="S.currentTab='files';renderAccountDetail()">📎 Upload File</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddContact('${a.id}')">+ Add Contact</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddNote('${a.id}')">+ Add Note</button>
         <button class="btn btn-secondary btn-sm" onclick="openAddOpp('${a.id}')">+ Add Opportunity</button>
-        <button class="btn btn-secondary btn-sm" onclick="genSFNote('${a.id}')">📋 Generate SF Note</button>
+        <button class="btn btn-secondary btn-sm" onclick="genSFNote('${a.id}')">📋 SF Note</button>
       </div>
     </div>`;
 }
 
 function fieldRow(label, value) {
   return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-    <span style="color:var(--muted);font-weight:500">${label}</span>
-    <span style="font-weight:600">${value}</span>
-  </div>`;
+    <span style="color:var(--muted);font-weight:500">${label}</span><span style="font-weight:600">${value}</span></div>`;
 }
 
 function renderTabFiles(el, a, docs) {
@@ -1191,22 +959,16 @@ function renderTabFiles(el, a, docs) {
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
         <div class="card-title" style="margin-bottom:0">Files</div>
-        <label class="btn btn-primary btn-sm" style="cursor:pointer">
-          + Upload File
+        <label class="btn btn-primary btn-sm" style="cursor:pointer">+ Upload File
           <input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="handleFileUpload(event,'${a.id}','customer')">
         </label>
       </div>
-      ${docs.length === 0 ? `<div class="upload-zone" onclick="document.querySelector('input[type=file]').click()">
-        <div style="font-size:32px">📎</div>
-        <p>Drop files here or click to upload<br><small>Excel, images, PDFs, Word docs supported</small></p>
-      </div>` : docs.map(doc => `
-        <div class="file-item">
+      ${docs.length===0?`<div class="upload-zone"><div style="font-size:32px">📎</div><p>Drop files here or click to upload<br><small>Excel, images, PDFs supported</small></p></div>`:
+        docs.map(doc=>`<div class="file-item">
           <div class="file-icon">${doc.file_type==='excel'?'📊':doc.file_type==='image'?'🖼️':'📄'}</div>
-          <div style="flex:1;min-width:0">
-            <div class="file-name">${escHTML(doc.name)}</div>
-            <div class="file-meta">${doc.row_count ? doc.row_count.toLocaleString() + ' rows' : ''} ${doc.date_range ? '· ' + escHTML(doc.date_range) : ''} · ${timeAgo(doc.created_at)}</div>
-          </div>
-          <button class="btn-icon" onclick="deleteDoc('${doc.id}')" title="Delete">🗑️</button>
+          <div style="flex:1;min-width:0"><div class="file-name">${escHTML(doc.name)}</div>
+          <div class="file-meta">${doc.row_count?doc.row_count.toLocaleString()+' rows':''} ${doc.date_range?'· '+escHTML(doc.date_range):''} · ${timeAgo(doc.created_at)}</div></div>
+          <button class="btn-icon" onclick="deleteDoc('${doc.id}')">🗑️</button>
         </div>`).join('')}
     </div>`;
 }
@@ -1218,17 +980,13 @@ function renderTabContacts(el, a, contacts) {
         <div class="card-title" style="margin-bottom:0">Contacts</div>
         <button class="btn btn-primary btn-sm" onclick="openAddContact('${a.id}')">+ Add Contact</button>
       </div>
-      ${contacts.map(c => `
-        <div class="contact-card" onclick="openEditContact('${c.id}')">
-          <div class="contact-avatar">${(c.name||'?')[0].toUpperCase()}</div>
-          <div style="flex:1">
-            <div class="contact-name">${escHTML(c.name)}</div>
-            <div class="contact-title">${escHTML(c.title || '')}</div>
-            ${c.email ? `<div class="contact-email">${escHTML(c.email)}</div>` : ''}
-            ${c.what_they_care_about ? `<div style="font-size:11px;color:var(--muted);margin-top:3px">💡 ${escHTML(c.what_they_care_about)}</div>` : ''}
-          </div>
-          ${c.last_contact_date ? `<div style="font-size:11px;color:var(--muted2);text-align:right">Last contact<br>${timeAgo(c.last_contact_date)}</div>` : ''}
-        </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">👤</div><h3>No contacts yet</h3><p>Add contacts to track who you talk to</p></div>'}
+      ${contacts.map(c=>`<div class="contact-card" onclick="openEditContact('${c.id}')">
+        <div class="contact-avatar">${(c.name||'?')[0].toUpperCase()}</div>
+        <div style="flex:1"><div class="contact-name">${escHTML(c.name)}</div><div class="contact-title">${escHTML(c.title||'')}</div>
+        ${c.email?`<div class="contact-email">${escHTML(c.email)}</div>`:''}
+        ${c.what_they_care_about?`<div style="font-size:11px;color:var(--muted);margin-top:3px">💡 ${escHTML(c.what_they_care_about)}</div>`:''}
+        </div>${c.last_contact_date?`<div style="font-size:11px;color:var(--muted2);text-align:right">Last contact<br>${timeAgo(c.last_contact_date)}</div>`:''}
+      </div>`).join('')||'<div class="empty-state"><div class="empty-state-icon">👤</div><h3>No contacts yet</h3></div>'}
     </div>`;
 }
 
@@ -1239,14 +997,10 @@ function renderTabNotes(el, a, notes) {
         <div class="card-title" style="margin-bottom:0">Notes</div>
         <button class="btn btn-primary btn-sm" onclick="openAddNote('${a.id}')">+ Add Note</button>
       </div>
-      ${notes.map(n => `
-        <div class="note-item">
-          <div class="note-header">
-            <span class="note-type">${escHTML(n.type || 'note')}</span>
-            <span class="note-date">${timeAgo(n.created_at)}</span>
-          </div>
-          <div class="note-content">${escHTML(n.content)}</div>
-        </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">📝</div><h3>No notes yet</h3></div>'}
+      ${notes.map(n=>`<div class="note-item">
+        <div class="note-header"><span class="note-type">${escHTML(n.type||'note')}</span><span class="note-date">${timeAgo(n.created_at)}</span></div>
+        <div class="note-content">${escHTML(n.content)}</div>
+      </div>`).join('')||'<div class="empty-state"><div class="empty-state-icon">📝</div><h3>No notes yet</h3></div>'}
     </div>`;
 }
 
@@ -1261,26 +1015,22 @@ function renderTabChat(el, a, chatHistory) {
           <button class="btn btn-secondary btn-sm" onclick="exportChat()">Export</button>
         </div>
       </div>
-      ${queries.length > 0 ? `<div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
+      ${queries.length>0?`<div style="padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg)">
         <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">QUICK QUERIES</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          ${queries.map(q=>`<button class="quick-q" onclick="sendAccountChat('${a.id}','${escAttr(q.query)}')">${escHTML(q.label)}</button>`).join('')}
-        </div>
-      </div>` : ''}
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${queries.map(q=>`<button class="quick-q" onclick="sendAccountChat('${a.id}','${escAttr(q.query)}')">${escHTML(q.label)}</button>`).join('')}</div>
+      </div>`:''}
       <div id="acct-chat-msgs" style="height:380px;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
-        ${chatHistory.map(m => renderChatMsg(m.role, m.content)).join('')}
-        ${chatHistory.length === 0 ? `<div class="empty-state"><div class="empty-state-icon">💬</div><h3>Start a conversation</h3><p>Ask about ${escHTML(a.name)}'s transaction history, vendors, trends, or anything else</p></div>` : ''}
+        ${chatHistory.map(m=>renderChatMsg(m.role,m.content)).join('')}
+        ${chatHistory.length===0?`<div class="empty-state"><div class="empty-state-icon">💬</div><h3>Start a conversation</h3><p>Ask about ${escHTML(a.name)}'s transaction history, vendors, or trends</p></div>`:''}
       </div>
       <div id="acct-chat-typing" style="display:none;padding:8px 16px"><div class="typing-dot"><span></span><span></span><span></span></div></div>
       <div style="padding:12px 16px;border-top:1px solid var(--border)">
-        ${S.searchTooltip ? `<div class="tooltip-badge">🔍 ${escHTML(S.searchTooltip)}</div>` : ''}
+        ${S.searchTooltip?`<div class="tooltip-badge">🔍 ${escHTML(S.searchTooltip)}</div>`:''}
         <div style="display:flex;gap:8px;align-items:flex-end">
           <textarea id="acct-chat-input" class="input" style="flex:1;resize:none;height:42px;padding:10px 12px;font-size:13px" placeholder="Ask about ${escHTML(a.name)}... (Enter to send)" rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAccountChatFromInput('${a.id}')}"
             oninput="autoResize(this)"></textarea>
-          <label class="btn-icon" title="Upload file" style="cursor:pointer">
-            📎<input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="handleChatFileUpload(event,'${a.id}')">
-          </label>
+          <label class="btn-icon" title="Upload file" style="cursor:pointer">📎<input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png" onchange="handleChatFileUpload(event,'${a.id}')"></label>
           <button class="chat-send-btn" onclick="sendAccountChatFromInput('${a.id}')">➤</button>
         </div>
       </div>
@@ -1292,7 +1042,7 @@ function renderChatMsg(role, content) {
   const isUser = role === 'user';
   return `<div class="chat-msg ${isUser?'user':'ai'}">
     <div class="chat-avatar ${isUser?'user':'ai'}">${isUser?'IA':'🤖'}</div>
-    <div class="chat-bubble">${isUser ? escHTML(content).replace(/\n/g,'<br>') : renderMD(content)}</div>
+    <div class="chat-bubble">${isUser?escHTML(content).replace(/\n/g,'<br>'):renderMD(content)}</div>
   </div>`;
 }
 
@@ -1301,32 +1051,24 @@ async function sendAccountChat(accountId, question) {
   const input = document.getElementById('acct-chat-input');
   if (input) input.value = '';
   S.chatLoading = true;
-  // Show user msg
   appendChatMsg('acct-chat-msgs', 'user', question);
   showTyping('acct-chat-typing', true);
-  // Save to Supabase
   await saveChatMessage(accountId, 'user', question);
   try {
     const context = buildKbContext(question, accountId);
     const acct = S.accounts.find(a => a.id === accountId);
     const { data: history } = await db.from('chat_messages').select('*').eq('account_id', accountId).order('created_at', {ascending:false}).limit(8);
-    const msgs = (history || []).reverse().map(m => ({ role: m.role, content: m.content }));
-    // Don't re-add the message we just saved
-    if (msgs.length > 0 && msgs[msgs.length-1].content === question) msgs.pop();
+    const msgs = (history||[]).reverse().map(m=>({role:m.role,content:m.content}));
+    if (msgs.length>0 && msgs[msgs.length-1].content===question) msgs.pop();
     msgs.push({ role: 'user', content: question });
-    const systemPrompt = KB_SYSTEM_PROMPT + `\n\nCurrent account context: ${acct?.name} (${acct?.type || 'Payer'})${acct?.description ? '\n' + acct.description : ''}`;
+    const systemPrompt = KB_SYSTEM_PROMPT + `\n\nCurrent account: ${acct?.name} (${acct?.type||'Payer'})${acct?.description?'\n'+acct.description:''}`;
     const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2500,
-        system: systemPrompt + '\n\n' + context,
-        messages: msgs,
-      })
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:2500,
+        system: systemPrompt + '\n\n' + context, messages: msgs })
     });
     const d = await resp.json();
-    const reply = d.content?.[0]?.text || 'Sorry, I could not get a response.';
+    const reply = d.content?.[0]?.text || 'Sorry, no response.';
     await saveChatMessage(accountId, 'assistant', reply);
     showTyping('acct-chat-typing', false);
     appendChatMsg('acct-chat-msgs', 'ai', reply);
@@ -1346,7 +1088,6 @@ function sendAccountChatFromInput(accountId) {
 function appendChatMsg(containerId, role, content) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  // Remove empty state if present
   const emptyState = el.querySelector('.empty-state');
   if (emptyState) emptyState.remove();
   const div = document.createElement('div');
@@ -1354,16 +1095,8 @@ function appendChatMsg(containerId, role, content) {
   el.appendChild(div.firstElementChild);
   el.scrollTop = el.scrollHeight;
 }
-
-function showTyping(id, show) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = show ? 'block' : 'none';
-}
-
-function scrollChatToBottom(id) {
-  const el = document.getElementById(id);
-  if (el) el.scrollTop = el.scrollHeight;
-}
+function showTyping(id, show) { const el=document.getElementById(id); if(el) el.style.display=show?'block':'none'; }
+function scrollChatToBottom(id) { const el=document.getElementById(id); if(el) el.scrollTop=el.scrollHeight; }
 
 async function clearAccountChat(accountId) {
   if (!confirm('Clear this chat history?')) return;
@@ -1378,23 +1111,17 @@ function renderTabOpps(el, a, opps) {
         <div class="card-title" style="margin-bottom:0">Pipeline</div>
         <button class="btn btn-primary btn-sm" onclick="openAddOpp('${a.id}')">+ Add Opportunity</button>
       </div>
-      ${opps.map(o => {
-        const stageClass = o.stage === 'Closed Won' ? 'stage-won' : o.stage === 'Prospecting' ? 'stage-prospect' : o.stage === 'Negotiating' ? 'stage-negotiating' : 'stage-closed';
+      ${opps.map(o=>{
+        const sc=o.stage==='Closed Won'?'stage-won':o.stage==='Prospecting'?'stage-prospect':o.stage==='Negotiating'?'stage-negotiating':'stage-closed';
         return `<div class="opp-item">
-          <div class="opp-header">
-            <div class="opp-name">${escHTML(o.name)}</div>
-            <span class="opp-stage ${stageClass}">${escHTML(o.stage)}</span>
-          </div>
+          <div class="opp-header"><div class="opp-name">${escHTML(o.name)}</div><span class="opp-stage ${sc}">${escHTML(o.stage)}</span></div>
           <div class="opp-meta">
-            <div>Value<span>${o.value ? '$' + o.value.toLocaleString() : '—'}</span></div>
-            <div>Close Date<span>${o.close_date ? new Date(o.close_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
-            <div>Committed Txns<span>${o.committed_transactions?.toLocaleString() || '—'}/mo</span></div>
+            <div>Value<span>${o.value?'$'+o.value.toLocaleString():'—'}</span></div>
+            <div>Close Date<span>${o.close_date?new Date(o.close_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}</span></div>
+            <div>Committed Txns<span>${o.committed_transactions?.toLocaleString()||'—'}/mo</span></div>
           </div>
-          ${o.stage === 'Closed Won' ? `<div style="margin-top:8px;font-size:12px;color:${o.verified?'var(--accent)':'var(--warn)'}">
-            ${o.verified ? '✅ Transactions verified in data' : '⚠️ Not yet verified in transaction data'}
-          </div>` : ''}
         </div>`;
-      }).join('') || '<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No opportunities yet</h3></div>'}
+      }).join('')||'<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No opportunities yet</h3></div>'}
     </div>`;
 }
 
@@ -1416,24 +1143,20 @@ function renderAIChat() {
         </div>
       </div>
       <div id="global-chat-msgs" style="flex:1;height:calc(100% - 180px);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
-        ${S.chat.map(m => renderChatMsg(m.role, m.content)).join('') || `
-          <div class="empty-state">
-            <div class="empty-state-icon">🤖</div>
-            <h3>AI Assistant</h3>
-            <p>Ask about any account, transaction data, vendors, or use a quick query above</p>
-          </div>`}
+        ${S.chat.map(m=>renderChatMsg(m.role,m.content)).join('')||`<div class="empty-state">
+          <div class="empty-state-icon">🤖</div><h3>AI Assistant</h3>
+          <p>Ask about any account, transaction data, vendors, or use a quick query above</p>
+        </div>`}
       </div>
       <div id="global-chat-typing" style="display:none;padding:8px 16px"><div class="typing-dot"><span></span><span></span><span></span></div></div>
       <div style="padding:12px 16px;border-top:1px solid var(--border)">
-        ${S.searchTooltip ? `<div id="search-tooltip" class="tooltip-badge">🔍 ${escHTML(S.searchTooltip)}</div>` : ''}
+        ${S.searchTooltip?`<div id="search-tooltip" class="tooltip-badge">🔍 ${escHTML(S.searchTooltip)}</div>`:''}
         <div style="display:flex;gap:8px;align-items:flex-end">
           <textarea id="global-chat-input" class="input" style="flex:1;resize:none;height:42px;padding:10px 12px;font-size:13px" placeholder="Ask about any account, transaction data, vendors... (Enter to send)" rows="1"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendGlobalChatFromInput()}"
             oninput="autoResize(this)"></textarea>
-          <label class="btn-icon" title="Upload file to KB" style="cursor:pointer">
-            📎<input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf" onchange="handleChatFileUpload(event,null)">
-          </label>
-          <button class="chat-send-btn" id="global-send-btn" onclick="sendGlobalChatFromInput()">➤</button>
+          <label class="btn-icon" title="Upload file to KB" style="cursor:pointer">📎<input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf" onchange="handleChatFileUpload(event,null)"></label>
+          <button class="chat-send-btn" onclick="sendGlobalChatFromInput()">➤</button>
         </div>
       </div>
     </div>`;
@@ -1448,32 +1171,27 @@ async function sendGlobalChat(question) {
   S.chatLoading = true;
   appendChatMsg('global-chat-msgs', 'user', question);
   showTyping('global-chat-typing', true);
-  // Update tooltip
-  buildKbContext(question, null); // side effect: sets S.searchTooltip
+  buildKbContext(question, null);
   const tooltipEl = document.getElementById('search-tooltip');
   if (S.searchTooltip) {
     if (tooltipEl) tooltipEl.textContent = '🔍 ' + S.searchTooltip;
     else {
-      const footer = document.querySelector('#global-chat-input').parentElement.parentElement;
-      const badge = document.createElement('div');
-      badge.id = 'search-tooltip';
-      badge.className = 'tooltip-badge';
-      badge.textContent = '🔍 ' + S.searchTooltip;
-      footer.insertBefore(badge, footer.firstChild);
+      const footer = document.querySelector('#global-chat-input')?.parentElement?.parentElement;
+      if (footer) {
+        const badge = document.createElement('div');
+        badge.id = 'search-tooltip'; badge.className = 'tooltip-badge';
+        badge.textContent = '🔍 ' + S.searchTooltip;
+        footer.insertBefore(badge, footer.firstChild);
+      }
     }
   }
   try {
     const context = buildKbContext(question, null);
-    const msgs = S.chat.slice(-8).map(m => ({ role: m.role, content: m.content }));
+    const msgs = S.chat.slice(-8).map(m=>({role:m.role,content:m.content}));
     const resp = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2500,
-        system: KB_SYSTEM_PROMPT + '\n\n' + context,
-        messages: msgs,
-      })
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:2500,
+        system: KB_SYSTEM_PROMPT + '\n\n' + context, messages: msgs })
     });
     const d = await resp.json();
     const reply = d.content?.[0]?.text || 'Sorry, no response.';
@@ -1486,32 +1204,29 @@ async function sendGlobalChat(question) {
   }
   S.chatLoading = false;
 }
-
 function sendGlobalChatFromInput() {
   const q = document.getElementById('global-chat-input')?.value?.trim() || '';
   if (q) sendGlobalChat(q);
 }
 
 // ══════════════════════════════════════════════════════
-// CONTACTS (global view)
+// CONTACTS (global)
 // ══════════════════════════════════════════════════════
 function renderContacts() {
   document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="openAddContact(null)">+ Add Contact</button>`;
   document.getElementById('main-content').innerHTML = `
     <div class="card">
       <div class="card-title">All Contacts (${S.contacts.length})</div>
-      ${S.contacts.map(c => {
-        const acct = S.accounts.find(a => a.id === c.account_id);
+      ${S.contacts.map(c=>{
+        const acct = S.accounts.find(a=>a.id===c.account_id);
         return `<div class="contact-card" onclick="openEditContact('${c.id}')">
           <div class="contact-avatar">${(c.name||'?')[0].toUpperCase()}</div>
-          <div style="flex:1">
-            <div class="contact-name">${escHTML(c.name)}</div>
-            <div class="contact-title">${escHTML(c.title || '')}${acct ? ' · <span style="color:var(--info)">' + escHTML(acct.name) + '</span>' : ''}</div>
-            ${c.email ? `<div class="contact-email">${escHTML(c.email)}</div>` : ''}
-          </div>
-          ${c.last_contact_date ? `<div style="font-size:11px;color:var(--muted2)">Last contact<br>${timeAgo(c.last_contact_date)}</div>` : ''}
+          <div style="flex:1"><div class="contact-name">${escHTML(c.name)}</div>
+          <div class="contact-title">${escHTML(c.title||'')}${acct?' · <span style="color:var(--info)">'+escHTML(acct.name)+'</span>':''}</div>
+          ${c.email?`<div class="contact-email">${escHTML(c.email)}</div>`:''}
+          </div>${c.last_contact_date?`<div style="font-size:11px;color:var(--muted2)">Last contact<br>${timeAgo(c.last_contact_date)}</div>`:''}
         </div>`;
-      }).join('') || '<div class="empty-state"><div class="empty-state-icon">👤</div><h3>No contacts yet</h3><p>Add contacts from an account page</p></div>'}
+      }).join('')||'<div class="empty-state"><div class="empty-state-icon">👤</div><h3>No contacts yet</h3></div>'}
     </div>`;
 }
 
@@ -1520,26 +1235,20 @@ function renderContacts() {
 // ══════════════════════════════════════════════════════
 function renderPipeline() {
   document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="openAddOpp(null)">+ Add Opportunity</button>`;
-  const stages = ['Prospecting','Qualifying','Proposal','Negotiating','Closed Won','Closed Lost'];
   document.getElementById('main-content').innerHTML = `
     <div class="card">
-      <div class="card-title">All Opportunities</div>
-      ${S.opportunities.length === 0 ? '<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No opportunities yet</h3></div>' : ''}
-      ${S.opportunities.map(o => {
-        const acct = S.accounts.find(a => a.id === o.account_id);
-        const stageClass = o.stage === 'Closed Won' ? 'stage-won' : o.stage === 'Prospecting' ? 'stage-prospect' : o.stage === 'Negotiating' ? 'stage-negotiating' : o.stage === 'Closed Lost' ? 'stage-closed' : 'stage-prospect';
+      <div class="card-title">All Opportunities (${S.opportunities.length})</div>
+      ${S.opportunities.length===0?'<div class="empty-state"><div class="empty-state-icon">📊</div><h3>No opportunities yet</h3></div>':''}
+      ${S.opportunities.map(o=>{
+        const acct = S.accounts.find(a=>a.id===o.account_id);
+        const sc=o.stage==='Closed Won'?'stage-won':o.stage==='Prospecting'?'stage-prospect':o.stage==='Negotiating'?'stage-negotiating':o.stage==='Closed Lost'?'stage-closed':'stage-prospect';
         return `<div class="opp-item">
-          <div class="opp-header">
-            <div>
-              <div class="opp-name">${escHTML(o.name)}</div>
-              ${acct ? `<div style="font-size:12px;color:var(--info);margin-top:2px">${escHTML(acct.name)}</div>` : ''}
-            </div>
-            <span class="opp-stage ${stageClass}">${escHTML(o.stage)}</span>
-          </div>
+          <div class="opp-header"><div><div class="opp-name">${escHTML(o.name)}</div>${acct?`<div style="font-size:12px;color:var(--info);margin-top:2px">${escHTML(acct.name)}</div>`:''}</div>
+          <span class="opp-stage ${sc}">${escHTML(o.stage)}</span></div>
           <div class="opp-meta">
-            <div>Value<span>${o.value ? '$' + parseFloat(o.value).toLocaleString() : '—'}</span></div>
-            <div>Close Date<span>${o.close_date ? new Date(o.close_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'}</span></div>
-            <div>Txn Target<span>${o.committed_transactions?.toLocaleString() || '—'}/mo</span></div>
+            <div>Value<span>${o.value?'$'+parseFloat(o.value).toLocaleString():'—'}</span></div>
+            <div>Close Date<span>${o.close_date?new Date(o.close_date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'}</span></div>
+            <div>Txn Target<span>${o.committed_transactions?.toLocaleString()||'—'}/mo</span></div>
           </div>
         </div>`;
       }).join('')}
@@ -1551,34 +1260,35 @@ function renderPipeline() {
 // ══════════════════════════════════════════════════════
 function renderKB() {
   document.getElementById('header-actions').innerHTML = `
-    <label class="btn btn-primary" style="cursor:pointer">+ Upload to KB <input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="handleFileUpload(event,null,'general')"></label>`;
+    <label class="btn btn-primary" style="cursor:pointer">+ Upload to KB
+      <input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf,.doc,.docx" onchange="handleFileUpload(event,null,'general')">
+    </label>`;
   const sections = [
-    { key: 'payer', label: 'PayCargo Payers', icon: '💳' },
-    { key: 'vendor', label: 'PayCargo Vendors', icon: '📦' },
-    { key: 'general', label: 'General Knowledge', icon: '📚' },
-    { key: 'industry', label: 'Industry Knowledge', icon: '🌐' },
+    { key:'payer', label:'PayCargo Payers', icon:'💳' },
+    { key:'vendor', label:'PayCargo Vendors', icon:'📦' },
+    { key:'general', label:'General Knowledge', icon:'📚' },
+    { key:'industry', label:'Industry Knowledge', icon:'🌐' },
   ];
   document.getElementById('main-content').innerHTML = `
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">Knowledge Base Documents</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Files uploaded here are available to the AI Assistant across all conversations. Per-company files are better uploaded under each Account.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Files uploaded here are available to the AI Assistant across all conversations.</p>
     </div>
-    ${sections.map(s => {
-      const docs = S.documents.filter(d => d.section === s.key && !d.account_id);
+    ${sections.map(s=>{
+      const docs = S.documents.filter(d=>d.section===s.key&&!d.account_id);
       return `<div class="kb-section">
         <div class="kb-section-header">
           <div class="kb-section-title">${s.icon} ${s.label} <span style="font-size:12px;font-weight:400;color:var(--muted)">(${docs.length})</span></div>
-          <label class="btn btn-secondary btn-sm" style="cursor:pointer">+ Upload <input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf" onchange="handleFileUpload(event,null,'${s.key}')"></label>
+          <label class="btn btn-secondary btn-sm" style="cursor:pointer">+ Upload
+            <input type="file" style="display:none" accept=".xlsx,.xls,.csv,.jpg,.jpeg,.png,.pdf" onchange="handleFileUpload(event,null,'${s.key}')">
+          </label>
         </div>
-        ${docs.map(doc => `
-          <div class="kb-doc">
-            <div style="font-size:18px">${doc.file_type==='excel'?'📊':doc.file_type==='image'?'🖼️':'📄'}</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHTML(doc.name)}</div>
-              <div style="font-size:11px;color:var(--muted)">${doc.row_count ? doc.row_count.toLocaleString() + ' rows' : ''} ${doc.date_range ? '· ' + escHTML(doc.date_range) : ''} · ${timeAgo(doc.created_at)}</div>
-            </div>
-            <button class="btn-icon" onclick="deleteDoc('${doc.id}')">🗑️</button>
-          </div>`).join('') || `<div style="padding:12px;font-size:13px;color:var(--muted2);text-align:center">No files in this section</div>`}
+        ${docs.map(doc=>`<div class="kb-doc">
+          <div style="font-size:18px">${doc.file_type==='excel'?'📊':doc.file_type==='image'?'🖼️':'📄'}</div>
+          <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHTML(doc.name)}</div>
+          <div style="font-size:11px;color:var(--muted)">${doc.row_count?doc.row_count.toLocaleString()+' rows':''} ${doc.date_range?'· '+escHTML(doc.date_range):''} · ${timeAgo(doc.created_at)}</div></div>
+          <button class="btn-icon" onclick="deleteDoc('${doc.id}')">🗑️</button>
+        </div>`).join('')||`<div style="padding:12px;font-size:13px;color:var(--muted2);text-align:center">No files in this section</div>`}
       </div>`;
     }).join('')}`;
 }
@@ -1588,59 +1298,49 @@ function renderKB() {
 // ══════════════════════════════════════════════════════
 function renderActions() {
   document.getElementById('header-actions').innerHTML = `<button class="btn btn-primary" onclick="openAddAction()">+ Add Action</button>`;
-  const pending = S.actionItems.filter(a => !a.completed);
-  const done = S.actionItems.filter(a => a.completed);
+  const pending = S.actionItems.filter(a=>!a.completed);
+  const done = S.actionItems.filter(a=>a.completed);
   document.getElementById('main-content').innerHTML = `
     <div class="card">
       <div class="card-title">Pending Actions (${pending.length})</div>
-      ${pending.map(a => {
-        const acct = S.accounts.find(acc => acc.id === a.account_id);
+      ${pending.map(a=>{
+        const acct = S.accounts.find(acc=>acc.id===a.account_id);
         const overdue = a.due_date && new Date(a.due_date) < new Date();
         return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
           <input type="checkbox" onchange="completeAction('${a.id}')" style="width:16px;height:16px;cursor:pointer">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600;color:${overdue?'var(--danger)':'var(--text)'}">${escHTML(a.title)}</div>
-            ${acct ? `<div style="font-size:11px;color:var(--muted)">${escHTML(acct.name)}</div>` : ''}
-          </div>
-          ${a.due_date ? `<div style="font-size:11px;color:${overdue?'var(--danger)':'var(--muted)'}">📅 ${new Date(a.due_date).toLocaleDateString()}</div>` : ''}
+          <div style="flex:1"><div style="font-size:13px;font-weight:600;color:${overdue?'var(--danger)':'var(--text)'}">${escHTML(a.title)}</div>
+          ${acct?`<div style="font-size:11px;color:var(--muted)">${escHTML(acct.name)}</div>`:''}
+          </div>${a.due_date?`<div style="font-size:11px;color:${overdue?'var(--danger)':'var(--muted)'}">📅 ${new Date(a.due_date).toLocaleDateString()}</div>`:''}
         </div>`;
-      }).join('') || '<div class="empty-state"><div class="empty-state-icon">✅</div><h3>All caught up!</h3></div>'}
+      }).join('')||'<div class="empty-state"><div class="empty-state-icon">✅</div><h3>All caught up!</h3></div>'}
     </div>
-    ${done.length > 0 ? `<div class="card" style="margin-top:16px;opacity:.6">
+    ${done.length>0?`<div class="card" style="margin-top:16px;opacity:.6">
       <div class="card-title">Completed (${done.length})</div>
       ${done.slice(0,5).map(a=>`<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);text-decoration:line-through;color:var(--muted)">
         <input type="checkbox" checked disabled style="width:16px;height:16px">
         <div style="font-size:13px">${escHTML(a.title)}</div>
       </div>`).join('')}
-    </div>` : ''}`;
+    </div>`:''}`;
 }
 
 function renderAlerts() {
   document.getElementById('main-content').innerHTML = `
     <div class="card">
       <div class="card-title">Alerts (${S.alerts.length})</div>
-      ${S.alerts.map(a => `
-        <div class="alert-item alert-${a.severity || 'medium'}">
-          <span style="font-size:16px">${a.type === 'decline' ? '📉' : a.type === 'renewal' ? '📅' : '⚠️'}</span>
-          <div style="flex:1">
-            <div style="font-weight:600">${escHTML(a.message)}</div>
-            <div style="font-size:11px;opacity:.7;margin-top:2px">${timeAgo(a.created_at)}</div>
-          </div>
-          <button onclick="dismissAlert('${a.id}')" style="background:none;font-size:16px;cursor:pointer;color:inherit;opacity:.5">✕</button>
-        </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">🔔</div><h3>No active alerts</h3><p>Alerts will appear here when trends are detected</p></div>'}
+      ${S.alerts.map(a=>`<div class="alert-item alert-${a.severity||'medium'}">
+        <span style="font-size:16px">${a.type==='decline'?'📉':a.type==='renewal'?'📅':'⚠️'}</span>
+        <div style="flex:1"><div style="font-weight:600">${escHTML(a.message)}</div>
+        <div style="font-size:11px;opacity:.7;margin-top:2px">${timeAgo(a.created_at)}</div></div>
+        <button onclick="dismissAlert('${a.id}')" style="background:none;font-size:16px;cursor:pointer;color:inherit;opacity:.5">✕</button>
+      </div>`).join('')||'<div class="empty-state"><div class="empty-state-icon">🔔</div><h3>No active alerts</h3></div>'}
     </div>`;
 }
 
 async function dismissAlert(id) {
-  await db.from('alerts').update({ dismissed: true }).eq('id', id);
-  S.alerts = S.alerts.filter(a => a.id !== id);
-  renderAlerts();
-  updateBadges();
+  await db.from('alerts').update({dismissed:true}).eq('id',id);
+  S.alerts = S.alerts.filter(a=>a.id!==id);
+  renderAlerts(); updateBadges();
 }
-
-// ══════════════════════════════════════════════════════
-// SETTINGS
-// ══════════════════════════════════════════════════════
 function renderSettings() {
   document.getElementById('main-content').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -1651,14 +1351,755 @@ function renderSettings() {
           <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
             <div style="flex:1">
               <div style="font-size:13px;font-weight:600">${escHTML(q.label)}</div>
-              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHTML(q.query.slice(0,60))}…</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">${escHTML((q.query||'').slice(0,60))}…</div>
             </div>
             <button class="btn-icon" onclick="deleteQuery('${q.id}')">🗑️</button>
           </div>`).join('')}
         <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="openAddQuery()">+ Add Query</button>
       </div>
       <div class="card">
-        <div class="card-title">App Settings</div>
+        <div class="card-title">Writing Style</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Paste a few of your emails so the AI can match your tone.</p>
+        <textarea class="input" id="writing-style-input" style="min-height:160px;font-size:12px" placeholder="Paste sample emails here...">${escHTML(S.settings['writing_style'] || '')}</textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="saveWritingStyle()">Save Style</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Account</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0">
+        <div class="sb-avatar" style="width:48px;height:48px;font-size:18px">IA</div>
+        <div>
+          <div style="font-size:15px;font-weight:700">Isaac Adams</div>
+          <div style="font-size:12px;color:var(--muted)">Director, Enterprise Development · PayCargo</div>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="if(confirm('Sign out?')){sessionStorage.removeItem('aimc_auth');location.reload()}">Sign Out</button>
+    </div>`;
+}
+
+async function saveWritingStyle() {
+  const val = document.getElementById('writing-style-input')?.value || '';
+  await db.from('app_settings').upsert({ key: 'writing_style', value: val });
+  S.settings['writing_style'] = val;
+  showToast('Writing style saved');
+}
+
+// ══════════════════════════════════════════════════════
+// EMAIL TRIAGE
+// ══════════════════════════════════════════════════════
+function renderEmailTriage() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">📨 Email Triage</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Paste an email to get AI-powered analysis, suggested reply, and CRM actions.</p>
+      <div class="form-group">
+        <label class="label">Paste Email Content</label>
+        <textarea class="input" id="email-input" style="min-height:200px;font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="Paste the full email here including subject, sender, and body..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="analyzeEmail()">🤖 Analyze Email</button>
+    </div>
+    <div id="email-result"></div>`;
+}
+
+async function analyzeEmail() {
+  const emailText = document.getElementById('email-input')?.value?.trim();
+  if (!emailText) { showToast('Please paste an email first', 'warn'); return; }
+  const resultEl = document.getElementById('email-result');
+  resultEl.innerHTML = `<div class="card" style="text-align:center;padding:32px"><div class="spinner"></div><p style="margin-top:12px;color:var(--muted)">Analyzing email...</p></div>`;
+  const accountsContext = S.accounts.map(a => a.name).join(', ');
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system: KB_SYSTEM_PROMPT + `\n\nKnown accounts: ${accountsContext}`,
+        messages: [{ role: 'user', content: `Analyze this email and provide:\n1. **Summary** (2-3 sentences)\n2. **Sender/Account** (match to known accounts if possible)\n3. **Priority** (High/Medium/Low with reason)\n4. **Suggested Reply** (draft a professional response in Isaac's voice)\n5. **CRM Actions** (what to log, follow-ups needed)\n\nEmail:\n${emailText}` }]
+      })
+    });
+    const d = await resp.json();
+    const reply = d.content?.[0]?.text || 'Could not analyze email.';
+    resultEl.innerHTML = `<div class="card"><div class="card-title">Analysis Result</div><div class="chat-bubble" style="background:var(--bg);border-radius:8px;padding:16px;max-width:100%">${renderMD(reply)}</div><button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="copyToClipboard(this.previousElementSibling.previousElementSibling?.innerText||'')">Copy</button></div>`;
+  } catch(err) {
+    resultEl.innerHTML = `<div class="card"><p style="color:var(--danger)">Error: ${escHTML(err.message)}</p></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// RATE BUILDER
+// ══════════════════════════════════════════════════════
+function renderRateBuilder() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">💰 Rate Builder</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Build a rate proposal or analyze pricing for a customer.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div class="form-group">
-          <label class="label">Writing Style (for email drafts)</label>
-          <textarea class="input" id="writing-style-input" placeholder="Paste a few of your emails here so the AI
+          <label class="label">Account</label>
+          <select class="input" id="rate-account">
+            <option value="">-- Select Account --</option>
+            ${S.accounts.map(a => `<option value="${escAttr(a.id)}">${escHTML(a.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Monthly Transaction Volume</label>
+          <input class="input" id="rate-volume" type="number" placeholder="e.g. 500">
+        </div>
+        <div class="form-group">
+          <label class="label">Average Transaction Size ($)</label>
+          <input class="input" id="rate-avg-txn" type="number" placeholder="e.g. 2500">
+        </div>
+        <div class="form-group">
+          <label class="label">Contract Length</label>
+          <select class="input" id="rate-contract">
+            <option value="month-to-month">Month-to-Month</option>
+            <option value="1-year">1 Year</option>
+            <option value="2-year">2 Year</option>
+            <option value="3-year">3 Year</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="label">Additional Notes / Special Requirements</label>
+        <textarea class="input" id="rate-notes" placeholder="Any special pricing considerations, competitor info, etc."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="buildRate()">🤖 Generate Rate Proposal</button>
+    </div>
+    <div id="rate-result"></div>`;
+}
+
+async function buildRate() {
+  const accountId = document.getElementById('rate-account')?.value;
+  const volume = document.getElementById('rate-volume')?.value;
+  const avgTxn = document.getElementById('rate-avg-txn')?.value;
+  const contract = document.getElementById('rate-contract')?.value;
+  const notes = document.getElementById('rate-notes')?.value;
+  const acct = S.accounts.find(a => a.id === accountId);
+  const resultEl = document.getElementById('rate-result');
+  resultEl.innerHTML = `<div class="card" style="text-align:center;padding:32px"><div class="spinner"></div><p style="margin-top:12px;color:var(--muted)">Building rate proposal...</p></div>`;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system: KB_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: `Build a PayCargo rate proposal for:
+Account: ${acct?.name || 'Prospect'}
+Monthly Volume: ${volume || 'unknown'} transactions
+Avg Transaction Size: $${avgTxn || 'unknown'}
+Contract: ${contract}
+Notes: ${notes || 'none'}
+
+Include: recommended fee structure, annual value to PayCargo, talking points for the sales call, and a concise proposal summary Isaac can paste into an email.` }]
+      })
+    });
+    const d = await resp.json();
+    const reply = d.content?.[0]?.text || 'Could not generate proposal.';
+    resultEl.innerHTML = `<div class="card"><div class="card-title">Rate Proposal</div><div class="chat-bubble" style="background:var(--bg);border-radius:8px;padding:16px;max-width:100%">${renderMD(reply)}</div></div>`;
+  } catch(err) {
+    resultEl.innerHTML = `<div class="card"><p style="color:var(--danger)">Error: ${escHTML(err.message)}</p></div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// MORNING BRIEFING & WEEKLY REPORT
+// ══════════════════════════════════════════════════════
+async function runMorningBriefing() {
+  renderView('ai');
+  const question = `Good morning! Give me a quick briefing: which accounts need attention today, any upcoming contract renewals in the next 30 days, pending action items, and top priority focus for today. Be concise and actionable.`;
+  setTimeout(() => sendGlobalChat(question), 300);
+}
+
+async function runWeeklyReport() {
+  renderView('ai');
+  const question = `Generate a weekly sales report summary: account health overview, pipeline status, any significant transaction trend changes, completed actions this week, and recommended focus areas for next week.`;
+  setTimeout(() => sendGlobalChat(question), 300);
+}
+
+async function genSFNote(accountId) {
+  const acct = S.accounts.find(a => a.id === accountId);
+  if (!acct) return;
+  openModal(`<div class="modal-header"><div class="modal-title">📋 Generate Salesforce Note</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">AI will generate a professional call/activity note for ${escHTML(acct.name)}.</p>
+    <div class="form-group"><label class="label">What happened? (brief description)</label>
+    <textarea class="input" id="sf-note-input" style="min-height:100px" placeholder="e.g. Had a call with Sarah, discussed Q1 volume decline, she mentioned budget freeze..."></textarea></div>
+    <button class="btn btn-primary" onclick="submitSFNote('${accountId}')">Generate Note</button>
+    <div id="sf-note-result" style="margin-top:16px"></div>`);
+}
+
+async function submitSFNote(accountId) {
+  const input = document.getElementById('sf-note-input')?.value?.trim();
+  if (!input) return;
+  const acct = S.accounts.find(a => a.id === accountId);
+  const resultEl = document.getElementById('sf-note-result');
+  resultEl.innerHTML = `<div class="spinner"></div>`;
+  try {
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        system: KB_SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: `Write a professional Salesforce activity note for account "${acct?.name}". Keep it factual, 3-5 sentences, past tense, no fluff.\n\nWhat happened: ${input}` }]
+      })
+    });
+    const d = await resp.json();
+    const note = d.content?.[0]?.text || '';
+    resultEl.innerHTML = `<div style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;line-height:1.6">${escHTML(note)}</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="copyToClipboard('${escAttr(note)}')">Copy to Clipboard</button>`;
+  } catch(err) {
+    resultEl.innerHTML = `<p style="color:var(--danger)">Error: ${escHTML(err.message)}</p>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// FILE UPLOAD HANDLERS
+// ══════════════════════════════════════════════════════
+async function handleFileUpload(event, accountId, section) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+  showToast('Uploading ' + file.name + '...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let doc;
+    if (['xlsx','xls','csv'].includes(ext)) {
+      doc = await processExcelFile(file, accountId, section || 'general');
+    } else if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+      doc = await processImageFile(file, accountId, section || 'general');
+    } else {
+      // Generic text/PDF - store as document
+      const text = await file.text().catch(() => '[binary file]');
+      const { data, error } = await db.from('documents').insert({
+        account_id: accountId || null,
+        section: section || 'general',
+        name: file.name,
+        file_type: 'document',
+        extracted_text: text.slice(0, 20000),
+      }).select().single();
+      if (error) throw error;
+      S.documents.unshift(data);
+      doc = data;
+    }
+    showToast('✅ ' + file.name + ' uploaded');
+    if (S.view === 'kb') renderKB();
+    else if (S.view === 'account-detail') renderAccountDetail();
+  } catch(err) {
+    showToast('❌ Upload failed: ' + err.message, 'error');
+  }
+}
+
+async function handleChatFileUpload(event, accountId) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  event.target.value = '';
+  const section = accountId ? 'customer' : 'general';
+  showToast('Uploading ' + file.name + ' to knowledge base...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (['xlsx','xls','csv'].includes(ext)) {
+      await processExcelFile(file, accountId, section);
+    } else if (['jpg','jpeg','png','gif','webp'].includes(ext)) {
+      await processImageFile(file, accountId, section);
+    } else {
+      const text = await file.text().catch(() => '[binary file]');
+      const { data, error } = await db.from('documents').insert({
+        account_id: accountId || null, section, name: file.name,
+        file_type: 'document', extracted_text: text.slice(0, 20000),
+      }).select().single();
+      if (error) throw error;
+      S.documents.unshift(data);
+    }
+    showToast('✅ ' + file.name + ' added to context');
+  } catch(err) {
+    showToast('❌ Upload failed: ' + err.message, 'error');
+  }
+}
+
+async function deleteDoc(id) {
+  if (!confirm('Delete this file?')) return;
+  await db.from('documents').delete().eq('id', id);
+  try { localStorage.removeItem('aimc_sheets_' + id); localStorage.removeItem('aimc_img_' + id); } catch(e){}
+  S.documents = S.documents.filter(d => d.id !== id);
+  if (S.view === 'kb') renderKB();
+  else if (S.view === 'account-detail') renderAccountDetail();
+  showToast('File deleted');
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — ACCOUNTS
+// ══════════════════════════════════════════════════════
+function openAddAccount() {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Account</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Company Name *</label><input class="input" id="acct-name" placeholder="e.g. SPARX Logistics"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Type</label>
+        <select class="input" id="acct-type"><option value="Payer">Payer</option><option value="Vendor">Vendor</option><option value="Prospect">Prospect</option></select>
+      </div>
+      <div class="form-group"><label class="label">Health</label>
+        <select class="input" id="acct-health"><option value="green">Green</option><option value="yellow">Yellow</option><option value="red">Red</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label class="label">Industry</label><input class="input" id="acct-industry" placeholder="e.g. Freight Forwarding"></div>
+    <div class="form-group"><label class="label">Website</label><input class="input" id="acct-website" placeholder="https://..."></div>
+    <div class="form-group"><label class="label">Contract Expiry</label><input class="input" id="acct-expiry" type="date"></div>
+    <div class="form-group"><label class="label">Monthly Volume Committed (txns)</label><input class="input" id="acct-volume" type="number" placeholder="e.g. 250"></div>
+    <div class="form-group"><label class="label">Notes / Description</label><textarea class="input" id="acct-desc" placeholder="Key info, relationship context..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewAccount()">Save Account</button>
+    </div>`);
+}
+
+async function saveNewAccount() {
+  const name = document.getElementById('acct-name')?.value?.trim();
+  if (!name) { showToast('Name is required', 'warn'); return; }
+  const { data, error } = await db.from('accounts').insert({
+    name,
+    type: document.getElementById('acct-type')?.value || 'Payer',
+    health: document.getElementById('acct-health')?.value || 'green',
+    industry: document.getElementById('acct-industry')?.value || '',
+    website: document.getElementById('acct-website')?.value || '',
+    contract_expiry: document.getElementById('acct-expiry')?.value || null,
+    committed_monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
+    description: document.getElementById('acct-desc')?.value || '',
+  }).select().single();
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  S.accounts.push(data);
+  S.accounts.sort((a,b) => a.name.localeCompare(b.name));
+  closeModal();
+  showToast('✅ Account added');
+  renderAccounts();
+}
+
+function editAccount(id) {
+  const a = S.accounts.find(acc => acc.id === id);
+  if (!a) return;
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Edit Account</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Company Name *</label><input class="input" id="acct-name" value="${escAttr(a.name)}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Type</label>
+        <select class="input" id="acct-type">
+          <option value="Payer"${a.type==='Payer'?' selected':''}>Payer</option>
+          <option value="Vendor"${a.type==='Vendor'?' selected':''}>Vendor</option>
+          <option value="Prospect"${a.type==='Prospect'?' selected':''}>Prospect</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="label">Health</label>
+        <select class="input" id="acct-health">
+          <option value="green"${a.health==='green'?' selected':''}>Green</option>
+          <option value="yellow"${a.health==='yellow'?' selected':''}>Yellow</option>
+          <option value="red"${a.health==='red'?' selected':''}>Red</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="label">Industry</label><input class="input" id="acct-industry" value="${escAttr(a.industry||'')}"></div>
+    <div class="form-group"><label class="label">Website</label><input class="input" id="acct-website" value="${escAttr(a.website||'')}"></div>
+    <div class="form-group"><label class="label">Contract Expiry</label><input class="input" id="acct-expiry" type="date" value="${a.contract_expiry||''}"></div>
+    <div class="form-group"><label class="label">Monthly Volume Committed</label><input class="input" id="acct-volume" type="number" value="${a.committed_monthly_volume||''}"></div>
+    <div class="form-group"><label class="label">Notes / Description</label><textarea class="input" id="acct-desc">${escHTML(a.description||'')}</textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditAccount('${id}')">Save Changes</button>
+    </div>`);
+}
+
+async function saveEditAccount(id) {
+  const name = document.getElementById('acct-name')?.value?.trim();
+  if (!name) { showToast('Name is required', 'warn'); return; }
+  const updates = {
+    name,
+    type: document.getElementById('acct-type')?.value,
+    health: document.getElementById('acct-health')?.value,
+    industry: document.getElementById('acct-industry')?.value || '',
+    website: document.getElementById('acct-website')?.value || '',
+    contract_expiry: document.getElementById('acct-expiry')?.value || null,
+    committed_monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
+    description: document.getElementById('acct-desc')?.value || '',
+  };
+  const { data, error } = await db.from('accounts').update(updates).eq('id', id).select().single();
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  const idx = S.accounts.findIndex(a => a.id === id);
+  if (idx >= 0) S.accounts[idx] = data;
+  S.currentAccount = data;
+  closeModal();
+  showToast('✅ Account updated');
+  renderAccountDetail();
+}
+
+async function deleteAccount(id) {
+  if (!confirm('Delete this account and all associated data? This cannot be undone.')) return;
+  await db.from('accounts').delete().eq('id', id);
+  S.accounts = S.accounts.filter(a => a.id !== id);
+  showToast('Account deleted');
+  renderView('accounts');
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — CONTACTS
+// ══════════════════════════════════════════════════════
+function openAddContact(accountId) {
+  const accts = S.accounts;
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Contact</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Full Name *</label><input class="input" id="con-name" placeholder="Jane Smith"></div>
+    <div class="form-group"><label class="label">Account</label>
+      <select class="input" id="con-account">
+        <option value="">-- None --</option>
+        ${accts.map(a=>`<option value="${escAttr(a.id)}"${a.id===accountId?' selected':''}>${escHTML(a.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Title</label><input class="input" id="con-title" placeholder="VP of Finance"></div>
+      <div class="form-group"><label class="label">Email</label><input class="input" id="con-email" type="email" placeholder="jane@company.com"></div>
+    </div>
+    <div class="form-group"><label class="label">Phone</label><input class="input" id="con-phone" placeholder="+1 555 000 0000"></div>
+    <div class="form-group"><label class="label">What they care about</label><input class="input" id="con-cares" placeholder="e.g. reducing payment processing time"></div>
+    <div class="form-group"><label class="label">Last Contact Date</label><input class="input" id="con-last" type="date"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewContact()">Save Contact</button>
+    </div>`);
+}
+
+async function saveNewContact() {
+  const name = document.getElementById('con-name')?.value?.trim();
+  if (!name) { showToast('Name required', 'warn'); return; }
+  const { data, error } = await db.from('contacts').insert({
+    name,
+    account_id: document.getElementById('con-account')?.value || null,
+    title: document.getElementById('con-title')?.value || '',
+    email: document.getElementById('con-email')?.value || '',
+    phone: document.getElementById('con-phone')?.value || '',
+    what_they_care_about: document.getElementById('con-cares')?.value || '',
+    last_contact_date: document.getElementById('con-last')?.value || null,
+  }).select().single();
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  S.contacts.push(data);
+  closeModal();
+  showToast('✅ Contact added');
+  if (S.view === 'account-detail') renderAccountDetail();
+  else renderContacts();
+}
+
+function openEditContact(id) {
+  const c = S.contacts.find(x => x.id === id);
+  if (!c) return;
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Edit Contact</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Full Name *</label><input class="input" id="con-name" value="${escAttr(c.name)}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Title</label><input class="input" id="con-title" value="${escAttr(c.title||'')}"></div>
+      <div class="form-group"><label class="label">Email</label><input class="input" id="con-email" value="${escAttr(c.email||'')}"></div>
+    </div>
+    <div class="form-group"><label class="label">Phone</label><input class="input" id="con-phone" value="${escAttr(c.phone||'')}"></div>
+    <div class="form-group"><label class="label">What they care about</label><input class="input" id="con-cares" value="${escAttr(c.what_they_care_about||'')}"></div>
+    <div class="form-group"><label class="label">Last Contact Date</label><input class="input" id="con-last" type="date" value="${c.last_contact_date||''}"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteContact('${id}')">Delete</button>
+      <button class="btn btn-primary" onclick="saveEditContact('${id}')">Save</button>
+    </div>`);
+}
+
+async function saveEditContact(id) {
+  const name = document.getElementById('con-name')?.value?.trim();
+  if (!name) { showToast('Name required','warn'); return; }
+  const { data, error } = await db.from('contacts').update({
+    name,
+    title: document.getElementById('con-title')?.value||'',
+    email: document.getElementById('con-email')?.value||'',
+    phone: document.getElementById('con-phone')?.value||'',
+    what_they_care_about: document.getElementById('con-cares')?.value||'',
+    last_contact_date: document.getElementById('con-last')?.value||null,
+  }).eq('id', id).select().single();
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  const idx = S.contacts.findIndex(c=>c.id===id);
+  if (idx>=0) S.contacts[idx]=data;
+  closeModal(); showToast('✅ Contact updated');
+  if (S.view==='account-detail') renderAccountDetail(); else renderContacts();
+}
+
+async function deleteContact(id) {
+  if (!confirm('Delete this contact?')) return;
+  await db.from('contacts').delete().eq('id',id);
+  S.contacts=S.contacts.filter(c=>c.id!==id);
+  closeModal(); showToast('Contact deleted');
+  if (S.view==='account-detail') renderAccountDetail(); else renderContacts();
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — NOTES
+// ══════════════════════════════════════════════════════
+function openAddNote(accountId) {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Note</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Type</label>
+      <select class="input" id="note-type">
+        <option value="call">Call</option><option value="email">Email</option><option value="meeting">Meeting</option>
+        <option value="note">Note</option><option value="alert">Alert</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="label">Content *</label>
+      <textarea class="input" id="note-content" style="min-height:120px" placeholder="What happened? Key takeaways, action items..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNote('${accountId}')">Save Note</button>
+    </div>`);
+}
+
+async function saveNote(accountId) {
+  const content = document.getElementById('note-content')?.value?.trim();
+  if (!content) { showToast('Content required','warn'); return; }
+  const { error } = await db.from('notes').insert({
+    account_id: accountId,
+    type: document.getElementById('note-type')?.value||'note',
+    content,
+  });
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  closeModal(); showToast('✅ Note saved');
+  renderAccountDetail();
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — OPPORTUNITIES
+// ══════════════════════════════════════════════════════
+function openAddOpp(accountId) {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Opportunity</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Opportunity Name *</label><input class="input" id="opp-name" placeholder="e.g. SPARX Full Onboarding"></div>
+    <div class="form-group"><label class="label">Account</label>
+      <select class="input" id="opp-account">
+        <option value="">-- None --</option>
+        ${S.accounts.map(a=>`<option value="${escAttr(a.id)}"${a.id===accountId?' selected':''}>${escHTML(a.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Stage</label>
+        <select class="input" id="opp-stage">
+          <option>Prospecting</option><option>Qualifying</option><option>Proposal</option>
+          <option>Negotiating</option><option>Closed Won</option><option>Closed Lost</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="label">Value ($)</label><input class="input" id="opp-value" type="number" placeholder="e.g. 50000"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Close Date</label><input class="input" id="opp-close" type="date"></div>
+      <div class="form-group"><label class="label">Committed Txns/mo</label><input class="input" id="opp-txns" type="number" placeholder="e.g. 300"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewOpp()">Save</button>
+    </div>`);
+}
+
+async function saveNewOpp() {
+  const name = document.getElementById('opp-name')?.value?.trim();
+  if (!name) { showToast('Name required','warn'); return; }
+  const { data, error } = await db.from('opportunities').insert({
+    name,
+    account_id: document.getElementById('opp-account')?.value||null,
+    stage: document.getElementById('opp-stage')?.value||'Prospecting',
+    value: parseFloat(document.getElementById('opp-value')?.value)||null,
+    close_date: document.getElementById('opp-close')?.value||null,
+    committed_transactions: parseInt(document.getElementById('opp-txns')?.value)||null,
+    status: 'open',
+  }).select().single();
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  S.opportunities.push(data);
+  closeModal(); showToast('✅ Opportunity added');
+  if (S.view==='account-detail') renderAccountDetail(); else renderPipeline();
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — ACTION ITEMS
+// ══════════════════════════════════════════════════════
+function openAddAction() {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Action Item</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Task *</label><input class="input" id="act-title" placeholder="e.g. Follow up with SPARX re: onboarding timeline"></div>
+    <div class="form-group"><label class="label">Account</label>
+      <select class="input" id="act-account">
+        <option value="">-- None --</option>
+        ${S.accounts.map(a=>`<option value="${escAttr(a.id)}">${escHTML(a.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group"><label class="label">Due Date</label><input class="input" id="act-due" type="date"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewAction()">Save</button>
+    </div>`);
+}
+
+async function saveNewAction() {
+  const title = document.getElementById('act-title')?.value?.trim();
+  if (!title) { showToast('Task required','warn'); return; }
+  const { data, error } = await db.from('action_items').insert({
+    title,
+    account_id: document.getElementById('act-account')?.value||null,
+    due_date: document.getElementById('act-due')?.value||null,
+    completed: false,
+  }).select().single();
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  S.actionItems.push(data);
+  closeModal(); showToast('✅ Action added');
+  renderActions(); updateBadges();
+}
+
+async function completeAction(id) {
+  await db.from('action_items').update({completed:true}).eq('id',id);
+  const idx = S.actionItems.findIndex(a=>a.id===id);
+  if (idx>=0) S.actionItems[idx].completed=true;
+  renderActions(); updateBadges();
+}
+
+// ══════════════════════════════════════════════════════
+// MODALS — QUERIES
+// ══════════════════════════════════════════════════════
+function openAddQuery() {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">Add Quick Query</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <div class="form-group"><label class="label">Button Label *</label><input class="input" id="qry-label" placeholder="e.g. AGS Volume Trend"></div>
+    <div class="form-group"><label class="label">Query Text *</label><textarea class="input" id="qry-text" placeholder="e.g. Show me AGS transaction volume by month for the last 6 months and identify any decline trends"></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewQuery()">Save</button>
+    </div>`);
+}
+
+async function saveNewQuery() {
+  const label = document.getElementById('qry-label')?.value?.trim();
+  const query = document.getElementById('qry-text')?.value?.trim();
+  if (!label||!query) { showToast('Label and query required','warn'); return; }
+  const { data, error } = await db.from('saved_queries').insert({
+    label, query, sort_order: S.savedQueries.length
+  }).select().single();
+  if (error) { showToast('Error: '+error.message,'error'); return; }
+  S.savedQueries.push(data);
+  closeModal(); showToast('✅ Query saved');
+  renderSettings();
+}
+
+async function deleteQuery(id) {
+  if (!confirm('Delete this query?')) return;
+  await db.from('saved_queries').delete().eq('id',id);
+  S.savedQueries=S.savedQueries.filter(q=>q.id!==id);
+  renderSettings(); showToast('Query deleted');
+}
+
+function manageQueries() { renderView('settings'); }
+
+// ══════════════════════════════════════════════════════
+// BULK IMPORT
+// ══════════════════════════════════════════════════════
+function openBulkImport() {
+  openModal(`
+    <div class="modal-header"><div class="modal-title">📋 Bulk Import Accounts</div><div class="modal-close" onclick="closeModal()">✕</div></div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Paste a list of company names (one per line) to bulk-add accounts.</p>
+    <div class="form-group">
+      <label class="label">Company Names</label>
+      <textarea class="input" id="bulk-input" style="min-height:180px;font-family:'JetBrains Mono',monospace;font-size:12px" placeholder="SPARX Logistics&#10;C.H. Robinson&#10;DP World Logistics&#10;..."></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="label">Default Type</label>
+        <select class="input" id="bulk-type"><option value="Payer">Payer</option><option value="Vendor">Vendor</option><option value="Prospect">Prospect</option></select>
+      </div>
+    </div>
+    <div id="bulk-status" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="runBulkImport()">Import</button>
+    </div>`);
+}
+
+async function runBulkImport() {
+  const raw = document.getElementById('bulk-input')?.value||'';
+  const type = document.getElementById('bulk-type')?.value||'Payer';
+  const names = raw.split('\n').map(n=>n.trim()).filter(n=>n.length>0);
+  if (names.length===0) { showToast('No names entered','warn'); return; }
+  const statusEl = document.getElementById('bulk-status');
+  if (statusEl) statusEl.textContent = `Importing ${names.length} accounts...`;
+  const rows = names.map(name => ({ name, type, health: 'green' }));
+  const { data: created, error: insertError } = await db.from('accounts').insert(rows).select();
+  if (insertError) { showToast('Error: '+insertError.message,'error'); return; }
+  (created||[]).forEach(a => S.accounts.push(a));
+  S.accounts.sort((a,b)=>a.name.localeCompare(b.name));
+  closeModal(); showToast(`✅ ${(created||[]).length} accounts imported`);
+  renderAccounts();
+}
+
+// ══════════════════════════════════════════════════════
+// MODAL HELPERS
+// ══════════════════════════════════════════════════════
+function openModal(html) {
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal')) return;
+  document.getElementById('modal').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════════════
+function escHTML(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(str) {
+  if (str == null) return '';
+  return String(str).replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+}
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff/60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins/60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs/24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function exportChat() {
+  const msgs = S.chat.length > 0 ? S.chat : [];
+  if (!msgs.length) { showToast('No chat to export','warn'); return; }
+  const text = msgs.map(m=>`[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ai-chat-export.txt'; a.click();
+  URL.revokeObjectURL(url);
+}
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => showToast('Copied!')).catch(() => showToast('Copy failed','warn'));
+}
+function showToast(msg, type='success') {
+  const existing = document.getElementById('toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'toast';
+  el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;background:${type==='error'?'#ef4444':type==='warn'?'#f59e0b':'#10b981'};color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:slideIn .2s ease`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+</script>
+</body>
+</html>
