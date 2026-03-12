@@ -1,18 +1,24 @@
-const { Pool } = require('pg');
+import postgres from 'postgres';
 
-const pool = new Pool({
-  connectionString: `postgresql://postgres.cafgtjvajulozcvocnurj:${process.env.DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:6543/postgres`,
-  ssl: { rejectUnauthorized: false },
-  max: 1,
-});
-
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const client = await pool.connect();
+  const sql = postgres({
+    host: 'aws-0-us-west-2.pooler.supabase.com',
+    port: 6543,
+    database: 'postgres',
+    username: 'postgres.cafgtjvajulozcvocnurj',
+    password: process.env.DB_PASSWORD,
+    ssl: 'require',
+    max: 1,
+    idle_timeout: 10,
+    connect_timeout: 10,
+    prepare: false,
+  });
+
   try {
     const { path = '', query = '' } = req.query;
     const table = path.replace('/rest/v1/', '').split('?')[0];
@@ -30,14 +36,14 @@ module.exports = async function handler(req, res) {
             const [col, val] = part.split('=eq.');
             filters.push([col, val]);
           } else if (part.includes('=is.false')) {
-            filters.push([part.split('=is.')[0], 'false']);
+            filters.push([part.split('=is.')[0], false]);
           }
         }
       }
       const where = filters.length ? 'WHERE ' + filters.map((f,i) => `"${f[0]}" = $${i+1}`).join(' AND ') : '';
       const vals = filters.map(f => f[1]);
-      const result = await client.query(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
-      return res.status(200).json(result.rows);
+      const result = await sql.unsafe(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
+      return res.status(200).json(result);
     }
 
     if (req.method === 'POST') {
@@ -48,8 +54,8 @@ module.exports = async function handler(req, res) {
         const vals = Object.values(row);
         const placeholders = keys.map((_, i) => `$${i+1}`).join(', ');
         const cols = keys.map(k => `"${k}"`).join(', ');
-        const r = await client.query(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders}) RETURNING *`, vals);
-        results.push(r.rows[0]);
+        const r = await sql.unsafe(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders}) RETURNING *`, vals);
+        results.push(r[0]);
       }
       return res.status(200).json(results.length === 1 ? results[0] : results);
     }
@@ -64,18 +70,18 @@ module.exports = async function handler(req, res) {
       const body = req.body;
       const keys = Object.keys(body);
       const sets = keys.map((k,i) => `"${k}" = $${i+1}`).join(', ');
-      const r = await client.query(
+      const r = await sql.unsafe(
         `UPDATE "${table}" SET ${sets} WHERE "${col}" = $${keys.length+1} RETURNING *`,
         [...Object.values(body), val]
       );
-      return res.status(200).json(r.rows[0]);
+      return res.status(200).json(r[0]);
     }
 
     if (req.method === 'DELETE') {
       for (const part of decodeURIComponent(query || '').split('&')) {
         if (part.includes('=eq.')) {
           const [col, val] = part.split('=eq.');
-          await client.query(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
+          await sql.unsafe(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
           return res.status(200).json({ success: true });
         }
       }
@@ -86,6 +92,6 @@ module.exports = async function handler(req, res) {
   } catch (err) {
     return res.status(500).json({ error: err.message, code: err.code });
   } finally {
-    client.release();
+    await sql.end();
   }
-};
+}
