@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   const sql = postgres({
     host: 'aws-0-us-west-2.pooler.supabase.com',
-    port: 6543,
+    port: 5432,
     database: 'postgres',
     username: 'postgres.cafgtjvajulozcvocnurj',
     password: process.env.DB_PASSWORD,
