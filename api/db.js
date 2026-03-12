@@ -1,5 +1,4 @@
-import pkg from 'pg';
-const { Pool } = pkg;
+const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: `postgresql://postgres.cafgtjvajulozcvocnurj:${process.env.DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:6543/postgres`,
@@ -7,7 +6,7 @@ const pool = new Pool({
   max: 1,
 });
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
@@ -89,4 +88,4 @@ export default async function handler(req, res) {
   } finally {
     client.release();
   }
-}
+};
