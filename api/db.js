@@ -1,20 +1,87 @@
+import postgres from 'postgres';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Debug endpoint - tell us exactly what's happening
-  const dbPassword = process.env.DB_PASSWORD;
-  const supabaseKey = process.env.SUPABASE_KEY;
-  const supabaseUrl = process.env.SUPABASE_URL;
-
-  return res.status(200).json({
-    hasDbPassword: !!dbPassword,
-    dbPasswordLength: dbPassword ? dbPassword.length : 0,
-    hasSupabaseKey: !!supabaseKey,
-    hasSupabaseUrl: !!supabaseUrl,
-    supabaseUrl: supabaseUrl || 'NOT SET',
-    nodeVersion: process.version,
+  const sql = postgres({
+    host: 'aws-0-us-west-2.pooler.supabase.com',
+    port: 5432,
+    database: 'postgres',
+    username: 'postgres.cafgtjvajulozcvocnurj',
+    password: process.env.DB_PASSWORD,
+    ssl: 'require',
+    max: 1,
+    idle_timeout: 10,
+    connect_timeout: 10,
   });
+
+  try {
+    const { path = '', query = '' } = req.query;
+    const table = path.replace('/rest/v1/', '').split('?')[0];
+    if (!table) return res.status(400).json({ error: 'No table' });
+
+    if (req.method === 'GET') {
+      let orderCol = 'created_at', orderDir = 'DESC';
+      const filters = [];
+      if (query) {
+        for (const part of decodeURIComponent(query).split('&')) {
+          if (part.startsWith('order=')) {
+            const [col, dir] = part.replace('order=', '').split('.');
+            orderCol = col; orderDir = dir === 'desc' ? 'DESC' : 'ASC';
+          } else if (part.includes('=eq.')) {
+            const [col, val] = part.split('=eq.');
+            filters.push([col, val]);
+          } else if (part.includes('=is.false')) {
+            filters.push([part.split('=is.')[0], false]);
+          }
+        }
+      }
+      const where = filters.length ? 'WHERE ' + filters.map((f,i) => `"${f[0]}" = $${i+1}`).join(' AND ') : '';
+      const vals = filters.map(f => f[1]);
+      const result = await sql.unsafe(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
+      return res.status(200).json(result);
+    }
+
+    if (req.method === 'POST') {
+      const rows = Array.isArray(req.body) ? req.body : [req.body];
+      const result = await sql`INSERT INTO ${sql(table)} ${sql(rows)} RETURNING *`;
+      return res.status(200).json(result);
+    }
+
+    if (req.method === 'PATCH') {
+      const filters = [];
+      for (const part of decodeURIComponent(query || '').split('&')) {
+        if (part.includes('=eq.')) { const [c,v] = part.split('=eq.'); filters.push([c,v]); }
+      }
+      if (!filters.length) return res.status(400).json({ error: 'No filter' });
+      const [col, val] = filters[0];
+      const body = req.body;
+      const sets = Object.keys(body).map((k,i) => `"${k}" = $${i+1}`).join(', ');
+      const result = await sql.unsafe(
+        `UPDATE "${table}" SET ${sets} WHERE "${col}" = $${Object.keys(body).length+1} RETURNING *`,
+        [...Object.values(body), val]
+      );
+      return res.status(200).json(result);
+    }
+
+    if (req.method === 'DELETE') {
+      for (const part of decodeURIComponent(query || '').split('&')) {
+        if (part.includes('=eq.')) {
+          const [col, val] = part.split('=eq.');
+          await sql.unsafe(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
+          return res.status(200).json({ success: true });
+        }
+      }
+      return res.status(400).json({ error: 'No filter' });
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  } finally {
+    await sql.end();
+  }
 }
