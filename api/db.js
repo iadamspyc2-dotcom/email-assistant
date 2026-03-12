@@ -6,18 +6,16 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const sql = postgres({
-    host: 'aws-0-us-west-2.pooler.supabase.com',
-    port: 5432,
-    database: 'postgres',
-    username: 'postgres.cafgtjvajulozcvocnurj',
-    password: process.env.DB_PASSWORD,
+const sql = postgres(
+  `postgresql://postgres.cafgtjvajulozcvocnurj:${process.env.DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:5432/postgres`,
+  {
     ssl: 'require',
     max: 1,
     idle_timeout: 10,
     connect_timeout: 10,
     prepare: false,
-  });
+  }
+);
 
   try {
     const { path = '', query = '' } = req.query;
