@@ -1,4 +1,11 @@
-import postgres from 'postgres';
+import pkg from 'pg';
+const { Pool } = pkg;
+
+const pool = new Pool({
+  connectionString: `postgresql://postgres.cafgtjvajulozcvocnurj:${process.env.DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:6543/postgres`,
+  ssl: { rejectUnauthorized: false },
+  max: 1,
+});
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -6,18 +13,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const sql = postgres({
-    host: 'aws-0-us-west-2.pooler.supabase.com',
-    port: 5432,
-    database: 'postgres',
-    username: 'postgres.cafgtjvajulozcvocnurj',
-    password: process.env.DB_PASSWORD,
-    ssl: 'require',
-    max: 1,
-    idle_timeout: 10,
-    connect_timeout: 10,
-  });
-
+  const client = await pool.connect();
   try {
     const { path = '', query = '' } = req.query;
     const table = path.replace('/rest/v1/', '').split('?')[0];
@@ -35,20 +31,28 @@ export default async function handler(req, res) {
             const [col, val] = part.split('=eq.');
             filters.push([col, val]);
           } else if (part.includes('=is.false')) {
-            filters.push([part.split('=is.')[0], false]);
+            filters.push([part.split('=is.')[0], 'false']);
           }
         }
       }
       const where = filters.length ? 'WHERE ' + filters.map((f,i) => `"${f[0]}" = $${i+1}`).join(' AND ') : '';
       const vals = filters.map(f => f[1]);
-      const result = await sql.unsafe(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
-      return res.status(200).json(result);
+      const result = await client.query(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
+      return res.status(200).json(result.rows);
     }
 
     if (req.method === 'POST') {
       const rows = Array.isArray(req.body) ? req.body : [req.body];
-      const result = await sql`INSERT INTO ${sql(table)} ${sql(rows)} RETURNING *`;
-      return res.status(200).json(result);
+      const results = [];
+      for (const row of rows) {
+        const keys = Object.keys(row);
+        const vals = Object.values(row);
+        const placeholders = keys.map((_, i) => `$${i+1}`).join(', ');
+        const cols = keys.map(k => `"${k}"`).join(', ');
+        const r = await client.query(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders}) RETURNING *`, vals);
+        results.push(r.rows[0]);
+      }
+      return res.status(200).json(results.length === 1 ? results[0] : results);
     }
 
     if (req.method === 'PATCH') {
@@ -59,19 +63,20 @@ export default async function handler(req, res) {
       if (!filters.length) return res.status(400).json({ error: 'No filter' });
       const [col, val] = filters[0];
       const body = req.body;
-      const sets = Object.keys(body).map((k,i) => `"${k}" = $${i+1}`).join(', ');
-      const result = await sql.unsafe(
-        `UPDATE "${table}" SET ${sets} WHERE "${col}" = $${Object.keys(body).length+1} RETURNING *`,
+      const keys = Object.keys(body);
+      const sets = keys.map((k,i) => `"${k}" = $${i+1}`).join(', ');
+      const r = await client.query(
+        `UPDATE "${table}" SET ${sets} WHERE "${col}" = $${keys.length+1} RETURNING *`,
         [...Object.values(body), val]
       );
-      return res.status(200).json(result);
+      return res.status(200).json(r.rows[0]);
     }
 
     if (req.method === 'DELETE') {
       for (const part of decodeURIComponent(query || '').split('&')) {
         if (part.includes('=eq.')) {
           const [col, val] = part.split('=eq.');
-          await sql.unsafe(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
+          await client.query(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
           return res.status(200).json({ success: true });
         }
       }
@@ -80,8 +85,8 @@ export default async function handler(req, res) {
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message, code: err.code });
   } finally {
-    await sql.end();
+    client.release();
   }
 }
