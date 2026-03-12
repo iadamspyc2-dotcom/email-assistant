@@ -88,7 +88,8 @@ const sql = postgres(
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-    return res.status(500).json({ error: err.message, code: err.code });
+console.error('DB error full:', JSON.stringify(err), err.toString(), err.stack);
+return res.status(500).json({ error: err.message || err.toString(), code: err.code });
   } finally {
     await sql.end();
   }
