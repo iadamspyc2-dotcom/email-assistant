@@ -1720,21 +1720,21 @@ function openAddAccount() {
 }
 
 async function saveNewAccount() {
-  const name = document.getElementById('acct-name')?.value?.trim();
-  if (!name) { showToast('Name is required', 'warn'); return; }
+  const company_name = document.getElementById('acct-name')?.value?.trim();
+  if (!company_name) { showToast('Name is required', 'warn'); return; }
   const { data, error } = await db.from('accounts').insert({
-    name,
+    company_name,
     type: document.getElementById('acct-type')?.value || 'Payer',
     health: document.getElementById('acct-health')?.value || 'green',
     industry: document.getElementById('acct-industry')?.value || '',
     website: document.getElementById('acct-website')?.value || '',
     contract_expiry: document.getElementById('acct-expiry')?.value || null,
-    committed_monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
-    description: document.getElementById('acct-desc')?.value || '',
+    monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
+    notes: document.getElementById('acct-desc')?.value || '',
   }).select().single();
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   S.accounts.push(data);
-  S.accounts.sort((a,b) => a.name.localeCompare(b.name));
+  S.accounts.sort((a,b) => a.company_name.localeCompare(b.company_name));
   closeModal();
   showToast('✅ Account added');
   renderAccounts();
@@ -1745,7 +1745,7 @@ function editAccount(id) {
   if (!a) return;
   openModal(`
     <div class="modal-header"><div class="modal-title">Edit Account</div><div class="modal-close" onclick="closeModal()">✕</div></div>
-    <div class="form-group"><label class="label">Company Name *</label><input class="input" id="acct-name" value="${escAttr(a.name)}"></div>
+    <div class="form-group"><label class="label">Company Name *</label><input class="input" id="acct-name" value="${escAttr(a.company_name)}"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="form-group"><label class="label">Type</label>
         <select class="input" id="acct-type">
@@ -1765,8 +1765,8 @@ function editAccount(id) {
     <div class="form-group"><label class="label">Industry</label><input class="input" id="acct-industry" value="${escAttr(a.industry||'')}"></div>
     <div class="form-group"><label class="label">Website</label><input class="input" id="acct-website" value="${escAttr(a.website||'')}"></div>
     <div class="form-group"><label class="label">Contract Expiry</label><input class="input" id="acct-expiry" type="date" value="${a.contract_expiry||''}"></div>
-    <div class="form-group"><label class="label">Monthly Volume Committed</label><input class="input" id="acct-volume" type="number" value="${a.committed_monthly_volume||''}"></div>
-    <div class="form-group"><label class="label">Notes / Description</label><textarea class="input" id="acct-desc">${escHTML(a.description||'')}</textarea></div>
+    <div class="form-group"><label class="label">Monthly Volume Committed</label><input class="input" id="acct-volume" type="number" value="${a.monthly_volume||''}"></div>
+    <div class="form-group"><label class="label">Notes / Description</label><textarea class="input" id="acct-desc">${escHTML(a.notes||'')}</textarea></div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveEditAccount('${id}')">Save Changes</button>
@@ -1774,17 +1774,17 @@ function editAccount(id) {
 }
 
 async function saveEditAccount(id) {
-  const name = document.getElementById('acct-name')?.value?.trim();
-  if (!name) { showToast('Name is required', 'warn'); return; }
+  const company_name = document.getElementById('acct-name')?.value?.trim();
+  if (!company_name) { showToast('Name is required', 'warn'); return; }
   const updates = {
-    name,
+    company_name,
     type: document.getElementById('acct-type')?.value,
     health: document.getElementById('acct-health')?.value,
     industry: document.getElementById('acct-industry')?.value || '',
     website: document.getElementById('acct-website')?.value || '',
     contract_expiry: document.getElementById('acct-expiry')?.value || null,
-    committed_monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
-    description: document.getElementById('acct-desc')?.value || '',
+    monthly_volume: parseInt(document.getElementById('acct-volume')?.value) || null,
+    notes: document.getElementById('acct-desc')?.value || '',
   };
   const { data, error } = await db.from('accounts').update(updates).eq('id', id).select().single();
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
