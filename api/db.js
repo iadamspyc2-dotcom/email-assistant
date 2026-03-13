@@ -1,4 +1,9 @@
-import postgres from 'postgres';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -6,80 +11,56 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Prefer');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-const sql = postgres(
-  `postgresql://postgres.cafgtjvajulozcvocnurj:${process.env.DB_PASSWORD}@aws-0-us-west-2.pooler.supabase.com:5432/postgres`,
-  {
-    ssl: 'require',
-    max: 1,
-    idle_timeout: 10,
-    connect_timeout: 10,
-    prepare: false,
-  }
-);
-
   try {
     const { path = '', query = '' } = req.query;
     const table = path.replace('/rest/v1/', '').split('?')[0];
     if (!table) return res.status(400).json({ error: 'No table' });
 
     if (req.method === 'GET') {
-      let orderCol = 'created_at', orderDir = 'DESC';
-      const filters = [];
+      let q = supabase.from(table).select('*');
       if (query) {
         for (const part of decodeURIComponent(query).split('&')) {
           if (part.startsWith('order=')) {
             const [col, dir] = part.replace('order=', '').split('.');
-            orderCol = col; orderDir = dir === 'desc' ? 'DESC' : 'ASC';
+            q = q.order(col, { ascending: dir !== 'desc' });
           } else if (part.includes('=eq.')) {
             const [col, val] = part.split('=eq.');
-            filters.push([col, val]);
+            q = q.eq(col, val);
           } else if (part.includes('=is.false')) {
-            filters.push([part.split('=is.')[0], false]);
+            q = q.eq(part.split('=is.')[0], false);
           }
         }
       }
-      const where = filters.length ? 'WHERE ' + filters.map((f,i) => `"${f[0]}" = $${i+1}`).join(' AND ') : '';
-      const vals = filters.map(f => f[1]);
-      const result = await sql.unsafe(`SELECT * FROM "${table}" ${where} ORDER BY "${orderCol}" ${orderDir}`, vals);
-      return res.status(200).json(result);
+      const { data, error } = await q;
+      if (error) throw error;
+      return res.status(200).json(data);
     }
 
     if (req.method === 'POST') {
       const rows = Array.isArray(req.body) ? req.body : [req.body];
-      const results = [];
-      for (const row of rows) {
-        const keys = Object.keys(row);
-        const vals = Object.values(row);
-        const placeholders = keys.map((_, i) => `$${i+1}`).join(', ');
-        const cols = keys.map(k => `"${k}"`).join(', ');
-        const r = await sql.unsafe(`INSERT INTO "${table}" (${cols}) VALUES (${placeholders}) RETURNING *`, vals);
-        results.push(r[0]);
-      }
-      return res.status(200).json(results.length === 1 ? results[0] : results);
+      const { data, error } = await supabase.from(table).insert(rows).select();
+      if (error) throw error;
+      return res.status(200).json(data.length === 1 ? data[0] : data);
     }
 
     if (req.method === 'PATCH') {
       const filters = [];
       for (const part of decodeURIComponent(query || '').split('&')) {
-        if (part.includes('=eq.')) { const [c,v] = part.split('=eq.'); filters.push([c,v]); }
+        if (part.includes('=eq.')) filters.push(part.split('=eq.'));
       }
       if (!filters.length) return res.status(400).json({ error: 'No filter' });
       const [col, val] = filters[0];
-      const body = req.body;
-      const keys = Object.keys(body);
-      const sets = keys.map((k,i) => `"${k}" = $${i+1}`).join(', ');
-      const r = await sql.unsafe(
-        `UPDATE "${table}" SET ${sets} WHERE "${col}" = $${keys.length+1} RETURNING *`,
-        [...Object.values(body), val]
-      );
-      return res.status(200).json(r[0]);
+      const { data, error } = await supabase.from(table).update(req.body).eq(col, val).select();
+      if (error) throw error;
+      return res.status(200).json(data[0]);
     }
 
     if (req.method === 'DELETE') {
       for (const part of decodeURIComponent(query || '').split('&')) {
         if (part.includes('=eq.')) {
           const [col, val] = part.split('=eq.');
-          await sql.unsafe(`DELETE FROM "${table}" WHERE "${col}" = $1`, [val]);
+          const { error } = await supabase.from(table).delete().eq(col, val);
+          if (error) throw error;
           return res.status(200).json({ success: true });
         }
       }
@@ -88,9 +69,7 @@ const sql = postgres(
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
-console.error('DB error full:', JSON.stringify(err), err.toString(), err.stack);
-return res.status(500).json({ error: err.message || err.toString(), code: err.code });
-  } finally {
-    await sql.end();
+    console.error('DB error:', err);
+    return res.status(500).json({ error: err.message || err.toString(), code: err.code });
   }
 }
