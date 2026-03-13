@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
-    "postgres": "^3.4.3"
+    "postgres": "^3.4.3",
+    "@supabase/supabase-js": "^2.39.0"
   }
 }
