@@ -1,53 +1,74 @@
 'use strict';
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client
+const supabaseUrl = 'your_supabase_url'; // Replace with your Supabase URL
+const supabaseAnonKey = 'your_anon_key'; // Replace with your Supabase Anon Key
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-async function handleRequest(req, res) {
-    const { method, url } = req;
-    const urlParts = url.split('/');
-    const tableName = urlParts[1]; // Assuming tableName is the first part of the URL after the base path
-
+// Function to handle GET requests
+export const getData = async (tableName) => {
     try {
-        if (method === 'GET') {
-            const { data, error } = await supabase.from(tableName).select();
-            if (error) throw error;
-            return res.status(200).json(data);
-        } else if (method === 'POST') {
-            const body = await parseBody(req);
-            const { data, error } = await supabase.from(tableName).insert([body]);
-            if (error) throw error;
-            return res.status(201).json(data);
-        } else if (method === 'PATCH') {
-            const body = await parseBody(req);
-            const id = urlParts[2]; // Assuming the ID to patch is the second part of the URL
-            const { data, error } = await supabase.from(tableName).update(body).match({ id });
-            if (error) throw error;
-            return res.status(200).json(data);
-        } else if (method === 'DELETE') {
-            const id = urlParts[2]; // Assuming the ID to delete is the second part of the URL
-            const { data, error } = await supabase.from(tableName).delete().match({ id });
-            if (error) throw error;
-            return res.status(204).send();
-        } else {
-            return res.status(405).send('Method Not Allowed');
-        }
-    } catch (err) {
-        console.error(err);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        const { data, error } = await supabase
+            .from(tableName)
+            .select('*');
+
+        if (error) throw error;
+
+        return data;
+    } catch (error) {
+        console.error('Error retrieving data:', error.message);
+        throw error;
     }
-}
+};
 
-async function parseBody(req) {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    return new Promise((resolve, reject) => {
-        req.on('end', () => { resolve(JSON.parse(body)); });
-        req.on('error', reject);
-    });
-}
+// Function to handle POST requests
+export const postData = async (tableName, newData) => {
+    try {
+        const { data, error } = await supabase
+            .from(tableName)
+            .insert([newData]);
 
-module.exports = handleRequest;
+        if (error) throw error;
+
+        return data;
+    } catch (error) {
+        console.error('Error posting data:', error.message);
+        throw error;
+    }
+};
+
+// Function to handle PATCH requests
+export const patchData = async (tableName, id, updatedData) => {
+    try {
+        const { data, error } = await supabase
+            .from(tableName)
+            .update(updatedData)
+            .match({ id: id });
+
+        if (error) throw error;
+
+        return data;
+    } catch (error) {
+        console.error('Error updating data:', error.message);
+        throw error;
+    }
+};
+
+// Function to handle DELETE requests
+export const deleteData = async (tableName, id) => {
+    try {
+        const { data, error } = await supabase
+            .from(tableName)
+            .delete()
+            .match({ id: id });
+
+        if (error) throw error;
+
+        return data;
+    } catch (error) {
+        console.error('Error deleting data:', error.message);
+        throw error;
+    }
+};
