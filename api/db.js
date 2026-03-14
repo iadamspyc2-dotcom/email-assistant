@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
@@ -13,6 +8,21 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    // Check env vars exist
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY) {
+      console.error('Missing env vars:', {
+        URL: !!process.env.SUPABASE_URL,
+        KEY: !!process.env.SUPABASE_KEY
+      });
+      return res.status(500).json({ error: 'Database not configured' });
+    }
+
+    // Create supabase client for each request
+    const supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_KEY
+    );
+
     const { path = '', query = '' } = req.query;
     const table = path.replace('/rest/v1/', '').split('?')[0];
 
